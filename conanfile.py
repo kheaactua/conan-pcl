@@ -1,6 +1,6 @@
 from __future__ import print_function
 from conans import ConanFile, CMake
-import re
+import re, os
 
 
 class PclConan(ConanFile):
@@ -34,7 +34,6 @@ class PclConan(ConanFile):
 
     def build(self):
 
-        pcl_major = '.'.join(self.version.split('.')[:2])
         vtk_major = '.'.join(self.deps_cpp_info['vtk'].version.split('.')[:2])
 
         # TODO See if we can use self.deps_cpp_info['vtk'].res
@@ -43,45 +42,42 @@ class PclConan(ConanFile):
 
         args = []
         if self.options.shared:
-
-        args.append('-DCMAKE_CXX_FLAGS=-mtune=generic"')
-        args.append('-DBOOST_ROOT:PATH=%s"'%self.deps_cpp_info['boost'].rootpath)
-        args.append('-DCMAKE_INSTALL_PREFIX=%s"'%self.package_folder)
-        args.append('-DEIGEN3_DIR:PATH=%s/share/eigen3/cmake"'%self.deps_cpp_info['eigen'].rootpath)
-        args.append('-DEIGEN_INCLUDE_DIR:PATH=%s/include/eigen3"'%self.deps_cpp_info['eigen'].rootpath)
-        args.append('-DFLANN_INCLUDE_DIR:PATH=%s/include"'%self.deps_cpp_info['flann'].rootpath)
-        args.append('-DFLANN_LIBRARY:FILEPATH=%s/lib/libflann_cpp.so"'%self.deps_cpp_info['flann'].rootpath)
-        args.append('-DQHULL_INCLUDE_DIR:PATH=%s/include"'%self.deps_cpp_info['qhull'].rootpath)
-        args.append('-DQHULL_LIBRARY:FILEPATH=%s/lib/libqhull.so"'%self.deps_cpp_info['qhull'].rootpath)
-        args.append('-DQt5Core_DIR=%s/lib/cmake/Qt5Core"'%self.deps_cpp_info['Qt'].rootpath)
-        args.append('-DQt5_DIR=%s/lib/cmake/Qt5"'%self.deps_cpp_info['Qt'].rootpath)
-        args.append('-DQt5Gui_DIR=%s/lib/cmake/Qt5Gui"'%self.deps_cpp_info['Qt'].rootpath)
-        args.append('-DQt5OpenGL_DIR=%s/lib/cmake/Qt5OpenGL"'%self.deps_cpp_info['Qt'].rootpath)
-        args.append('-DQt5Widgets_DIR=%s/lib/cmake/Qt5Widgets"'%self.deps_cpp_info['Qt'].rootpath)
-        args.append(f'-DVTK_DIR={vtk_cmake_dir}"')
+            args.append('-DBUILD_SHARED_LIBS=ON')
+        args.append('-DCMAKE_CXX_FLAGS=-mtune=generic')
+        args.append('-DBOOST_ROOT:PATH=%s'%self.deps_cpp_info['boost'].rootpath)
+        args.append('-DCMAKE_INSTALL_PREFIX=%s'%self.package_folder)
+        args.append('-DEIGEN3_DIR:PATH=%s/share/eigen3/cmake'%self.deps_cpp_info['eigen'].rootpath)
+        args.append('-DEIGEN_INCLUDE_DIR:PATH=%s/include/eigen3'%self.deps_cpp_info['eigen'].rootpath)
+        args.append('-DFLANN_INCLUDE_DIR:PATH=%s/include'%self.deps_cpp_info['flann'].rootpath)
+        args.append('-DFLANN_LIBRARY:FILEPATH=%s/lib/libflann_cpp.so'%self.deps_cpp_info['flann'].rootpath)
+        args.append('-DQHULL_INCLUDE_DIR:PATH=%s/include'%self.deps_cpp_info['qhull'].rootpath)
+        args.append('-DQHULL_LIBRARY:FILEPATH=%s/lib/libqhull.so'%self.deps_cpp_info['qhull'].rootpath)
+        args.append('-DQt5Core_DIR=%s/lib/cmake/Qt5Core'%self.deps_cpp_info['Qt'].rootpath)
+        args.append('-DQt5_DIR=%s/lib/cmake/Qt5'%self.deps_cpp_info['Qt'].rootpath)
+        args.append('-DQt5Gui_DIR=%s/lib/cmake/Qt5Gui'%self.deps_cpp_info['Qt'].rootpath)
+        args.append('-DQt5OpenGL_DIR=%s/lib/cmake/Qt5OpenGL'%self.deps_cpp_info['Qt'].rootpath)
+        args.append('-DQt5Widgets_DIR=%s/lib/cmake/Qt5Widgets'%self.deps_cpp_info['Qt'].rootpath)
+        args.append(f'-DVTK_DIR={vtk_cmake_dir}')
         args.append('-DBUILD_surface_on_nurbs=ON')
 
         cmake = CMake(self)
         build_folder = f'{self.source_folder}/{self.name}'
-        # Not using cmake.configure() because it escapes the arguments in a way
-        # that CMake doesn't like them.
-        # self.run(f'cd {build_folder} && cmake . {cmake.command_line} %s'%' '.join(args))
-        cmake.configure(source_path=self.name, args=args)
-        cmake.build(build_dir=f'{build_folder}')
-        cmake.install(build_dir=f'{build_folder}')
+        cmake.configure(source_folder=self.name, args=args)
+        cmake.build()
+        cmake.install()
 
         # Fix up the CMake Find Script PCL generated
         self.output.info('Inserting Conan variables in to the PCL CMake Find script.')
-        fixFindPackage(os.path.join(build_folder, cmakeRelDir()), pcl_major, vtk_cmake_rel_dir)
+        self.fixFindPackage(cmake.build_folder, vtk_cmake_rel_dir)
 
-    def fixFindPackage(self, cmake_path, pcl_major, vtk_cmake_rel_dir):
+    def fixFindPackage(self, path, vtk_cmake_rel_dir):
         """
         Insert some variables into the PCL find script generated in the
         build so that we can use it in our CMake scripts
         """
 
         # Now, run some regex's through the
-        with open(f'{cmake_path}/PCLConfig.cmake') as f:
+        with open(f'{path}/PCLConfig.cmake') as f:
             data = f.read()
 
         sub_map = {
@@ -104,8 +100,10 @@ class PclConan(ConanFile):
             else:
                 self.output.warning('Could not find %s'%pkg)
 
+        outp = open(f'{path}/PCLConfig.cmake', 'w')
+        outp.write(data)
 
-    def cmakeRelDir():
+    def cmakeRelDir(self):
         """ Grab the directory PCL's cmake is in """
         pcl_major = '.'.join(self.version.split('.')[:2])
         return os.path.join('share', f'pcl-{pcl_major}')
@@ -121,4 +119,4 @@ class PclConan(ConanFile):
         # and stuff)
 
         # Add the directory with CMake.. Not sure if this is a good use of resdirs
-        self.cpp_info.resdirs = [cmakeRelDir()]
+        self.cpp_info.resdirs = [self.cmakeRelDir()]
