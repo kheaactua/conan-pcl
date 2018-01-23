@@ -43,6 +43,7 @@ class PclConan(ConanFile):
 
         args = []
         if self.options.shared:
+
         args.append('-DCMAKE_CXX_FLAGS=-mtune=generic"')
         args.append('-DBOOST_ROOT:PATH=%s"'%self.deps_cpp_info['boost'].rootpath)
         args.append('-DCMAKE_INSTALL_PREFIX=%s"'%self.package_folder)
@@ -121,4 +122,3 @@ class PclConan(ConanFile):
 
         # Add the directory with CMake.. Not sure if this is a good use of resdirs
         self.cpp_info.resdirs = [cmakeRelDir()]
-
