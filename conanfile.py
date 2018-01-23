@@ -103,20 +103,55 @@ class PclConan(ConanFile):
         outp = open(f'{path}/PCLConfig.cmake', 'w')
         outp.write(data)
 
-    def cmakeRelDir(self):
-        """ Grab the directory PCL's cmake is in """
-        pcl_major = '.'.join(self.version.split('.')[:2])
-        return os.path.join('share', f'pcl-{pcl_major}')
-
     def package(self):
         pass
 
     def package_info(self):
-        # PCL should be loaded with a Find script written by PCL, so no need
-        # for us to know which specific libs and such need to be included.
-        # (Well, this assumption will change if a future conan file that
-        # depends on PCL for some reason needs to be able to check out its libs
-        # and stuff)
+        # PCL has a find script which populates variables holding include paths
+        # and libs, but since it doesn't define a target, and re-searches for
+        # Eigen and other dependencies, it's a little annoying to use - still,
+        # it's available by adding the resdir (below) to the CMAKE_MODULE_DIR
+        #
+        # While this might break encapsulation a little, we will add the libs
+        # to the package info such that we can simply use the conan package if
+        # we wish.
+
+        pcl_major = '.'.join(self.version.split('.')[:2])
 
         # Add the directory with CMake.. Not sure if this is a good use of resdirs
-        self.cpp_info.resdirs = [self.cmakeRelDir()]
+        self.cpp_info.resdirs = [os.path.join('share', f'pcl-{pcl_major}')]
+
+        # Add the real include path, the default one points to include/ but the one
+        # we use is include/pcl-1.8
+        self.cpp_info.includedirs = [os.path.join('include', f'pcl-{pcl_major}')]
+
+        # Populate the libs.  Manually written.  Not sure how I could populate
+        # this automatically yet.
+        libs = [
+            'pcl_common',
+            'pcl_features',
+            'pcl_filters',
+            'pcl_io',
+            'pcl_io_ply',
+            'pcl_kdtree',
+            'pcl_keypoints',
+            'pcl_ml',
+            'pcl_octree',
+            'pcl_outofcore',
+            'pcl_people',
+            'pcl_recognition',
+            'pcl_registration',
+            'pcl_sample_consensus',
+            'pcl_search',
+            'pcl_segmentation',
+            'pcl_stereo',
+            'pcl_surface',
+            'pcl_tracking',
+            'pcl_visualization',
+        ]
+
+        if not self.settings.os == "Linux":
+            self.cpp_info.libs = list(map((lambda name: 'lib' + name + '.so'), libs))
+        else:
+            self.cpp_info.libs = list(map((lambda name: name + '_release.dll'), libs))
+
