@@ -150,7 +150,7 @@ class PclConan(ConanFile):
             'pcl_visualization',
         ]
 
-        if not self.settings.os == "Linux":
+        if self.settings.os == "Linux":
             self.cpp_info.libs = list(map((lambda name: 'lib' + name + '.so'), libs))
         else:
             self.cpp_info.libs = list(map((lambda name: name + '_release.dll'), libs))
