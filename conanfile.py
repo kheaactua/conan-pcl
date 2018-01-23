@@ -17,7 +17,7 @@ class PclConan(ConanFile):
         'eigen/3.3.4@3dri/stable',
         'flann/1.9.1@3dri/stable',
         'qhull/2015.2@3dri/stable',
-        'vtk/7.1.1@jmdaly/testing', # TODO Change!
+        'vtk/8.1.0@3dri/stable',
         'Qt/5.9.3@3dri/stable',
     )
     options = {
