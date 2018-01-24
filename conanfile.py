@@ -13,12 +13,12 @@ class PclConan(ConanFile):
     build_policy="missing"
     generators = "cmake"
     requires = (
-        'boost/1.66.0@conan/stable',
-        'eigen/3.3.4@3dri/stable',
-        'flann/1.9.1@3dri/stable',
+        'boost/[>=1.56]@conan/stable',
+        'eigen/[>=3.3.3]@3dri/stable',
+        'flann/[>=1.8.4]@3dri/stable',
         'qhull/2015.2@3dri/stable',
-        'vtk/8.1.0@3dri/stable',
-        'Qt/5.9.3@3dri/stable',
+        'vtk/[>=7.1.0]@3dri/stable',
+        'Qt/[>=5.3.2]@3dri/stable',
     )
     options = {
         'shared': [True, False],
