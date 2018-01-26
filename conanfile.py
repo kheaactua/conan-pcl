@@ -14,13 +14,13 @@ class PclConan(ConanFile):
     generators = "cmake"
     requires = (
         'Boost.Thread/[>=1.46]@bincrafters/stable',
-        'Boost.Core[>=1.46]@bincrafters/stable',
+        'Boost.Core/[>=1.46]@bincrafters/stable',
         'eigen/[>=3.0.0]@3dri/stable',
         'flann/[>=1.6.8]@3dri/stable',
         'qhull/2015.2@3dri/stable',
         'vtk/[>=5.6.1]@3dri/stable',
         'Qt/[>=5.3.2]@3dri/stable',
-        # TODO google test
+        'gtest/[>=1.8.0]@lasote/stable',
     )
     options = {
         'shared': [True, False],
@@ -46,7 +46,7 @@ class PclConan(ConanFile):
         if self.options.shared:
             args.append('-DBUILD_SHARED_LIBS=ON')
         args.append('-DCMAKE_CXX_FLAGS=-mtune=generic')
-        args.append('-DBOOST_ROOT:PATH=%s'%self.deps_cpp_info['boost'].rootpath)
+        args.append('-DBOOST_ROOT:PATH=%s'%self.deps_cpp_info['Boost.Core'].rootpath)
         args.append('-DCMAKE_INSTALL_PREFIX=%s'%self.package_folder)
         args.append('-DEIGEN3_DIR:PATH=%s/share/eigen3/cmake'%self.deps_cpp_info['eigen'].rootpath)
         args.append('-DEIGEN_INCLUDE_DIR:PATH=%s/include/eigen3'%self.deps_cpp_info['eigen'].rootpath)
@@ -59,6 +59,7 @@ class PclConan(ConanFile):
         args.append('-DQt5Gui_DIR=%s/lib/cmake/Qt5Gui'%self.deps_cpp_info['Qt'].rootpath)
         args.append('-DQt5OpenGL_DIR=%s/lib/cmake/Qt5OpenGL'%self.deps_cpp_info['Qt'].rootpath)
         args.append('-DQt5Widgets_DIR=%s/lib/cmake/Qt5Widgets'%self.deps_cpp_info['Qt'].rootpath)
+        args.append('-DGTEST_ROOT=%s'%self.deps_cpp_info['gtest'].rootpath)
         args.append(f'-DVTK_DIR={vtk_cmake_dir}')
         args.append('-DBUILD_surface_on_nurbs=ON')
 
@@ -66,7 +67,6 @@ class PclConan(ConanFile):
             args.append('-DCMAKE_INSTALL_RPATH_USE_LINK_PATH:BOOL=True')
 
         cmake = CMake(self)
-        build_folder = f'{self.source_folder}/{self.name}'
         cmake.configure(source_folder=self.name, args=args)
         cmake.build()
         cmake.install()
