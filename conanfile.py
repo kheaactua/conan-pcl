@@ -60,6 +60,9 @@ class PclConan(ConanFile):
         args.append(f'-DVTK_DIR={vtk_cmake_dir}')
         args.append('-DBUILD_surface_on_nurbs=ON')
 
+        if self.settings.os == 'Linux':
+            args.append('-DCMAKE_INSTALL_RPATH_USE_LINK_PATH:BOOL=True')
+
         cmake = CMake(self)
         build_folder = f'{self.source_folder}/{self.name}'
         cmake.configure(source_folder=self.name, args=args)
@@ -155,3 +158,4 @@ class PclConan(ConanFile):
         else:
             self.cpp_info.libs = list(map((lambda name: name + '_release.dll'), libs))
 
+# vim: ts=4 sw=4 expandtab ffs=unix ft=python foldmethod=marker :
