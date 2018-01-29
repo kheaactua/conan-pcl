@@ -102,7 +102,7 @@ class PclConan(ConanFile):
             if m:
                 data = data[0:m.start()] + rep + data[m.end():]
             else:
-                self.output.warning('Could not find %s'%pkg)
+                self.output.warn('Could not find %s'%pkg)
 
         outp = open(f'{path}/PCLConfig.cmake', 'w')
         outp.write(data)
