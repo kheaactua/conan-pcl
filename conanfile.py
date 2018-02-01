@@ -14,7 +14,7 @@ class PclConan(ConanFile):
     generators = "cmake"
     requires = (
         'Boost/[>1.46]@conan/stable',
-        'eigen/[>=3.0.0]@3dri/stable',
+        'eigen/[>=3.2.0]@ntc/stable',
         'flann/[>=1.6.8]@3dri/stable',
         'qhull/2015.2@3dri/stable',
         'vtk/[>=5.6.1]@3dri/stable',
