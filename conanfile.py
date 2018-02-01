@@ -48,7 +48,7 @@ class PclConan(ConanFile):
         args.append('-DBOOST_ROOT:PATH=%s'%self.deps_cpp_info['Boost'].rootpath)
         args.append('-DCMAKE_INSTALL_PREFIX=%s'%self.package_folder)
         args.append('-DEIGEN3_DIR:PATH=%s/share/eigen3/cmake'%self.deps_cpp_info['eigen'].rootpath)
-        args.append('-DEIGEN_INCLUDE_DIR:PATH=%s/include/eigen3'%self.deps_cpp_info['eigen'].rootpath)
+        args.append('-DEIGEN_INCLUDE_DIR:PATH=%s'%os.path.join(self.deps_cpp_info['eigen'].rootpath, 'include', 'eigen3'))
         args.append('-DFLANN_INCLUDE_DIR:PATH=%s/include'%self.deps_cpp_info['flann'].rootpath)
         args.append('-DFLANN_LIBRARY:FILEPATH=%s/lib/libflann_cpp.so'%self.deps_cpp_info['flann'].rootpath)
         args.append('-DQHULL_INCLUDE_DIR:PATH=%s/include'%self.deps_cpp_info['qhull'].rootpath)
