@@ -15,10 +15,10 @@ class PclConan(ConanFile):
     requires = (
         'Boost/[>1.46]@conan/stable',
         'eigen/[>=3.2.0]@ntc/stable',
-        'flann/[>=1.6.8]@3dri/stable',
-        'qhull/2015.2@3dri/stable',
-        'vtk/[>=5.6.1]@3dri/stable',
-        'Qt/[>=5.3.2]@3dri/stable',
+        'flann/[>=1.6.8]@ntc/stable',
+        'qhull/2015.2@ntc/stable',
+        'vtk/[>=5.6.1]@ntc/stable',
+        'Qt/[>=5.3.2]@ntc/stable',
         'gtest/[>=1.8.0]@lasote/stable',
     )
     options = {
