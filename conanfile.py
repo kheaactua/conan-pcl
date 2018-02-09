@@ -70,18 +70,6 @@ class PclConan(ConanFile):
         args.append('-DCMAKE_CXX_FLAGS=-mtune=generic')
         args.append('-DBOOST_ROOT:PATH=%s'%self.deps_cpp_info['Boost'].rootpath)
 
-        args.append('-DEIGEN3_DIR:PATH=%s/share/eigen3/cmake'%self.deps_cpp_info['eigen'].rootpath)
-        args.append('-DEIGEN_INCLUDE_DIR:PATH=%s'%os.path.join(self.deps_cpp_info['eigen'].rootpath, 'include', 'eigen3'))
-        args.append('-DFLANN_INCLUDE_DIR:PATH=%s/include'%self.deps_cpp_info['flann'].rootpath)
-
-        libflann = None
-        for l in self.deps_cpp_info['flann'].libs:
-            if re.search('flann_cpp', l):
-                libflann = l
-                break
-        if libflann is None:
-            self.output.error('Could not find flann_cpp library.  Available libs: %s'%', '.join(self.deps_cpp_info['flann'].libs))
-            sys.exit(-1)
 
         libqhull = None
         for l in self.deps_cpp_info['qhull'].libs:
@@ -92,7 +80,6 @@ class PclConan(ConanFile):
             self.output.error('Could not find QHULL library')
             sys.exit(-1)
 
-        args.append('-DFLANN_LIBRARY:FILEPATH=%s'%os.path.join(self.deps_cpp_info['flann'].rootpath, self.deps_cpp_info['flann'].libdirs[0], libflann))
 
         args.append('-DQHULL_INCLUDE_DIR:PATH=%s'%os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].includedirs[0]))
         args.append('-DQHULL_LIBRARY:FILEPATH=%s'%os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].libdirs[0], libqhull))
