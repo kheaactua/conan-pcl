@@ -1,37 +1,60 @@
-from __future__ import print_function
-from conans import ConanFile, CMake
-import re, os
+import re, os, sys, shutil
+from conans import ConanFile, CMake, tools
 
 
 class PclConan(ConanFile):
-    name = "pcl"
-    version = "1.8.1"
-    license = "BSD"
-    url = "http://docs.pointclouds.org/"
-    description = "Point cloud library"
-    settings = "os", "compiler", "build_type", "arch"
-    build_policy="missing"
-    generators = "cmake"
+    """ Tested with versions 1.7.2, 1.8.0, and 1.8.1 """
+
+    name         = 'pcl'
+    license      = 'BSD'
+    url          = 'http://docs.pointclouds.org/'
+    description  = 'Point cloud library'
+    settings     = 'os', 'compiler', 'build_type', 'arch'
+    build_policy = 'missing'
+    generators   = 'cmake'
     requires = (
         'Boost/[>1.46]@conan/stable',
         'eigen/[>=3.2.0]@ntc/stable',
         'flann/[>=1.6.8]@ntc/stable',
         'qhull/2015.2@ntc/stable',
         'vtk/[>=5.6.1]@ntc/stable',
-        'Qt/[>=5.3.2]@ntc/stable',
+        'qt/[>=5.3.2]@ntc/stable',
         'gtest/[>=1.8.0]@lasote/stable',
     )
     options = {
         'shared': [True, False],
     }
-    default_options = ("shared=True")
+    default_options = ('shared=True')
 
     def source(self):
-        self.run(f'git clone https://github.com/PointCloudLibrary/pcl.git {self.name}')
-        self.run(f'cd {self.name} && git checkout pcl-{self.version}')
+
+        hashes = {
+            '1.8.1': '436704215670bb869ca742af48c749a9',
+            '1.8.0': '8c1308be2c13106e237e4a4204a32cca',
+            '1.7.2': '02c72eb6760fcb1f2e359ad8871b9968',
+        }
+
+        if self.version in hashes:
+            archive = f'pcl-{self.version}.tar.gz'
+            tools.download(
+                url=f'https://github.com/PointCloudLibrary/pcl/archive/{archive}',
+                filename=archive
+            )
+            tools.check_md5(archive, hashes[self.version])
+            tools.unzip(archive)
+            shutil.move(f'pcl-pcl-{self.version}', self.name)
+        else:
+            self.run(f'git clone https://github.com/PointCloudLibrary/pcl.git {self.name}')
+            self.run(f'cd {self.name} && git checkout pcl-{self.version}')
 
     def configure(self):
-        self.options["Boost"].shared = self.options.shared
+        self.options['Boost'].shared = self.options.shared
+        self.options['gtest'].shared = self.options.shared
+        self.options['qhull'].shared = self.options.shared
+        self.options['vtk'].shared = self.options.shared
+
+        if self.options.shared and self.settings.os == 'Windows' and self.version == '1.8.1':
+            self.options['flann'].shared = self.options.shared
 
     def build(self):
 
@@ -46,26 +69,59 @@ class PclConan(ConanFile):
             args.append('-DBUILD_SHARED_LIBS=ON')
         args.append('-DCMAKE_CXX_FLAGS=-mtune=generic')
         args.append('-DBOOST_ROOT:PATH=%s'%self.deps_cpp_info['Boost'].rootpath)
-        args.append('-DCMAKE_INSTALL_PREFIX=%s'%self.package_folder)
+
         args.append('-DEIGEN3_DIR:PATH=%s/share/eigen3/cmake'%self.deps_cpp_info['eigen'].rootpath)
         args.append('-DEIGEN_INCLUDE_DIR:PATH=%s'%os.path.join(self.deps_cpp_info['eigen'].rootpath, 'include', 'eigen3'))
         args.append('-DFLANN_INCLUDE_DIR:PATH=%s/include'%self.deps_cpp_info['flann'].rootpath)
-        args.append('-DFLANN_LIBRARY:FILEPATH=%s/lib/libflann_cpp.so'%self.deps_cpp_info['flann'].rootpath)
-        args.append('-DQHULL_INCLUDE_DIR:PATH=%s/include'%self.deps_cpp_info['qhull'].rootpath)
-        args.append('-DQHULL_LIBRARY:FILEPATH=%s/lib/libqhull.so'%self.deps_cpp_info['qhull'].rootpath)
-        args.append('-DQt5Core_DIR:PATH=%s/lib/cmake/Qt5Core'%self.deps_cpp_info['Qt'].rootpath)
-        args.append('-DQt5_DIR:PATH=%s/lib/cmake/Qt5'%self.deps_cpp_info['Qt'].rootpath)
-        args.append('-DQt5Gui_DIR:PATH=%s/lib/cmake/Qt5Gui'%self.deps_cpp_info['Qt'].rootpath)
-        args.append('-DQt5OpenGL_DIR:PATH=%s/lib/cmake/Qt5OpenGL'%self.deps_cpp_info['Qt'].rootpath)
-        args.append('-DQt5Widgets_DIR:PATH=%s/lib/cmake/Qt5Widgets'%self.deps_cpp_info['Qt'].rootpath)
+
+        libflann = None
+        for l in self.deps_cpp_info['flann'].libs:
+            if re.search('flann_cpp', l):
+                libflann = l
+                break
+        if libflann is None:
+            self.output.error('Could not find flann_cpp library.  Available libs: %s'%', '.join(self.deps_cpp_info['flann'].libs))
+            sys.exit(-1)
+
+        libqhull = None
+        for l in self.deps_cpp_info['qhull'].libs:
+            if re.search(r'qhull\d?', l):
+                libqhull = l
+                break
+        if libqhull is None:
+            self.output.error('Could not find QHULL library')
+            sys.exit(-1)
+
+        args.append('-DFLANN_LIBRARY:FILEPATH=%s'%os.path.join(self.deps_cpp_info['flann'].rootpath, self.deps_cpp_info['flann'].libdirs[0], libflann))
+
+        args.append('-DQHULL_INCLUDE_DIR:PATH=%s'%os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].includedirs[0]))
+        args.append('-DQHULL_LIBRARY:FILEPATH=%s'%os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].libdirs[0], libqhull))
+
+        args.append('-DQt5Core_DIR:PATH=%s'%     os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5Core'))
+        args.append('-DQt5_DIR:PATH=%s'%         os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5'))
+        args.append('-DQt5Gui_DIR:PATH=%s'%      os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5Gui'))
+        args.append('-DQt5OpenGL_DIR:PATH=%s'%   os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5OpenGL'))
+        args.append('-DQt5Widgets_DIR:PATH=%s'%  os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5Widgets'))
+
         args.append('-DGTEST_ROOT:PATH=%s'%self.deps_cpp_info['gtest'].rootpath)
         args.append(f'-DVTK_DIR:PATH={vtk_cmake_dir}')
         args.append('-DBUILD_surface_on_nurbs:BOOL=ON')
 
 
+        pkg_vars = {
+            'PKG_CONFIG_eigen3_PREFIX': self.deps_cpp_info['eigen'].rootpath,
+            'PKG_CONFIG_flann_PREFIX':  self.deps_cpp_info['flann'].rootpath,
+            'PKG_CONFIG_PATH': ':'.join([
+                os.path.join(self.deps_cpp_info['eigen'].rootpath, 'share', 'pkgconfig'),
+                os.path.join(self.deps_cpp_info['flann'].rootpath, 'lib', 'pkgconfig'),
+            ])
+        }
+
         cmake = CMake(self)
-        cmake.configure(source_folder=self.name, args=args)
-        cmake.build()
+        with tools.environment_append(pkg_vars):
+            cmake.configure(source_folder=self.name, args=args)
+            cmake.build()
+
         cmake.install()
 
         # Fix up the CMake Find Script PCL generated
@@ -152,9 +208,18 @@ class PclConan(ConanFile):
             'pcl_visualization',
         ]
 
-        if self.settings.os == "Linux":
-            self.cpp_info.libs = list(map((lambda name: 'lib' + name + '.so'), libs))
+        if 'Linux' == self.settings.os:
+            prefix = 'lib'
+            suffix = 'so' if self.options.shared else 'a'
         else:
+            prefix = ''
+            suffix = 'lib'
+
+        if self.settings.os == "Linux":
+            self.cpp_info.libs = list(map((lambda name: f'{prefix}{name}.{suffix}'), libs))
+        else:
+            build_type = self.settings.build_type.lower()
+            self.cpp_info.libs = list(map((lambda name: f'{prefix}{name}_{build_type}.{suffix}'), libs))
             self.cpp_info.libs = list(map((lambda name: name + '_release.dll'), libs))
 
 # vim: ts=4 sw=4 expandtab ffs=unix ft=python foldmethod=marker :
