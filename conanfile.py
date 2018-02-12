@@ -70,7 +70,6 @@ class PclConan(ConanFile):
         args.append('-DCMAKE_CXX_FLAGS=-mtune=generic')
         args.append('-DBOOST_ROOT:PATH=%s'%self.deps_cpp_info['boost'].rootpath)
 
-
         libqhull = None
         for l in self.deps_cpp_info['qhull'].libs:
             if re.search(r'qhull\d?', l):
@@ -161,14 +160,15 @@ class PclConan(ConanFile):
         # to the package info such that we can simply use the conan package if
         # we wish.
 
-        pcl_major = '.'.join(self.version.split('.')[:2])
+        (pcl_release, pcl_major, pcl_minor) = [int(i) for i in self.version.split('.')]
+        pcl_version_str = f'{pcl_release}.{pcl_major}'
 
         # Add the directory with CMake.. Not sure if this is a good use of resdirs
-        self.cpp_info.resdirs = [os.path.join('share', f'pcl-{pcl_major}')]
+        self.cpp_info.resdirs = [os.path.join('share', f'pcl-{pcl_version_str}')]
 
         # Add the real include path, the default one points to include/ but the one
         # we use is include/pcl-1.8
-        self.cpp_info.includedirs = [os.path.join('include', f'pcl-{pcl_major}')]
+        self.cpp_info.includedirs = [os.path.join('include', f'pcl-{pcl_version_str}')]
 
         # Populate the libs.  Manually written.  Not sure how I could populate
         # this automatically yet.
@@ -180,7 +180,6 @@ class PclConan(ConanFile):
             'pcl_io_ply',
             'pcl_kdtree',
             'pcl_keypoints',
-            'pcl_ml',
             'pcl_octree',
             'pcl_outofcore',
             'pcl_people',
@@ -189,11 +188,12 @@ class PclConan(ConanFile):
             'pcl_sample_consensus',
             'pcl_search',
             'pcl_segmentation',
-            'pcl_stereo',
             'pcl_surface',
             'pcl_tracking',
             'pcl_visualization',
         ]
+        if pcl_major >= 8:
+            libs += ['pcl_stereo', 'pcl_ml']
 
         if 'Linux' == self.settings.os:
             prefix = 'lib'
