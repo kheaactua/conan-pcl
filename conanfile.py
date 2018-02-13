@@ -96,6 +96,10 @@ class PclConan(ConanFile):
         args.append(f'-DVTK_DIR:PATH={vtk_cmake_dir}')
         args.append('-DBUILD_surface_on_nurbs:BOOL=ON')
 
+        # Despite provided this with pkg-config, and 1.7.2 finding these
+        # successfully with pkg-config, cmake evidentally still requires
+        # EIGEN_INCLUDE_DIR ... *shrugs*
+        args.append('-DEIGEN_INCLUDE_DIR:PATH=%s'%os.path.join(self.deps_cpp_info['eigen'].rootpath, 'include', 'eigen3'))
 
         pkg_vars = {
             'PKG_CONFIG_eigen3_PREFIX': self.deps_cpp_info['eigen'].rootpath,
