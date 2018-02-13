@@ -13,7 +13,7 @@ class PclConan(ConanFile):
     build_policy = 'missing'
     generators   = 'cmake'
     requires = (
-        'boost/[>1.46]@lasote/stable',
+        'boost/[>1.46]@ntc/stable',
         'eigen/[>=3.2.0]@ntc/stable',
         'flann/[>=1.6.8]@ntc/stable',
         'qhull/2015.2@ntc/stable',
@@ -36,13 +36,16 @@ class PclConan(ConanFile):
 
         if self.version in hashes:
             archive = f'pcl-{self.version}.tar.gz'
-            tools.download(
-                url=f'https://github.com/PointCloudLibrary/pcl/archive/{archive}',
-                filename=archive
-            )
-            tools.check_md5(archive, hashes[self.version])
-            tools.unzip(archive)
-            shutil.move(f'pcl-pcl-{self.version}', self.name)
+            if os.path.exists(os.path.join('/tmp', archive)):
+                shutil.copy(os.path.join('/tmp', archive), self.source_folder)
+            else:
+                tools.download(
+                    url=f'https://github.com/PointCloudLibrary/pcl/archive/{archive}',
+                    filename=archive
+                )
+                tools.check_md5(archive, hashes[self.version])
+                tools.unzip(archive)
+                shutil.move(f'pcl-pcl-{self.version}', self.name)
         else:
             self.run(f'git clone https://github.com/PointCloudLibrary/pcl.git {self.name}')
             self.run(f'cd {self.name} && git checkout pcl-{self.version}')
