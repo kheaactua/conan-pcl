@@ -62,8 +62,6 @@ class PclConan(ConanFile):
         args.append(f'-DVTK_DIR:PATH={vtk_cmake_dir}')
         args.append('-DBUILD_surface_on_nurbs:BOOL=ON')
 
-        if self.settings.os == 'Linux':
-            args.append('-DCMAKE_INSTALL_RPATH_USE_LINK_PATH:BOOL=True')
 
         cmake = CMake(self)
         cmake.configure(source_folder=self.name, args=args)
