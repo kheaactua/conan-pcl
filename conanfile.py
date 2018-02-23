@@ -13,7 +13,7 @@ class PclConan(ConanFile):
     build_policy = 'missing'
     generators   = 'cmake'
     requires = (
-        'Boost/[>1.46]@conan/stable',
+        'boost/[>1.46]@lasote/stable',
         'eigen/[>=3.2.0]@ntc/stable',
         'flann/[>=1.6.8]@ntc/stable',
         'qhull/2015.2@ntc/stable',
@@ -48,7 +48,7 @@ class PclConan(ConanFile):
             self.run(f'cd {self.name} && git checkout pcl-{self.version}')
 
     def configure(self):
-        self.options['Boost'].shared = self.options.shared
+        self.options['boost'].shared = self.options.shared
         self.options['gtest'].shared = self.options.shared
         self.options['qhull'].shared = self.options.shared
         self.options['vtk'].shared = self.options.shared
@@ -68,7 +68,7 @@ class PclConan(ConanFile):
         if self.options.shared:
             args.append('-DBUILD_SHARED_LIBS=ON')
         args.append('-DCMAKE_CXX_FLAGS=-mtune=generic')
-        args.append('-DBOOST_ROOT:PATH=%s'%self.deps_cpp_info['Boost'].rootpath)
+        args.append('-DBOOST_ROOT:PATH=%s'%self.deps_cpp_info['boost'].rootpath)
 
 
         libqhull = None
