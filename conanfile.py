@@ -13,8 +13,7 @@ class PclConan(ConanFile):
     build_policy="missing"
     generators = "cmake"
     requires = (
-        'Boost.Thread/[>=1.46]@bincrafters/stable',
-        'Boost.Core/[>=1.46]@bincrafters/stable',
+        'Boost/[>1.46]@conan/stable',
         'eigen/[>=3.0.0]@3dri/stable',
         'flann/[>=1.6.8]@3dri/stable',
         'qhull/2015.2@3dri/stable',
@@ -32,7 +31,7 @@ class PclConan(ConanFile):
         self.run(f'cd {self.name} && git checkout pcl-{self.version}')
 
     def configure(self):
-        self.options["boost"].shared = self.options.shared
+        self.options["Boost"].shared = self.options.shared
 
     def build(self):
 
@@ -46,7 +45,7 @@ class PclConan(ConanFile):
         if self.options.shared:
             args.append('-DBUILD_SHARED_LIBS=ON')
         args.append('-DCMAKE_CXX_FLAGS=-mtune=generic')
-        args.append('-DBOOST_ROOT:PATH=%s'%self.deps_cpp_info['Boost.Core'].rootpath)
+        args.append('-DBOOST_ROOT:PATH=%s'%self.deps_cpp_info['Boost'].rootpath)
         args.append('-DCMAKE_INSTALL_PREFIX=%s'%self.package_folder)
         args.append('-DEIGEN3_DIR:PATH=%s/share/eigen3/cmake'%self.deps_cpp_info['eigen'].rootpath)
         args.append('-DEIGEN_INCLUDE_DIR:PATH=%s/include/eigen3'%self.deps_cpp_info['eigen'].rootpath)
