@@ -26,6 +26,10 @@ class PclConan(ConanFile):
     }
     default_options = ('shared=True')
 
+    def build_requirements(self):
+        if 'Linux' == self.settings.os:
+            self.build_requires('pkg-config/0.29.2@ntc/stable')
+
     def source(self):
 
         hashes = {
