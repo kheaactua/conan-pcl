@@ -83,7 +83,7 @@ class PclConan(ConanFile):
                 libqhull = l
                 break
         if libqhull is None:
-            self.output.error('Could not find QHULL library')
+            self.output.error('Could not find QHULL library in qhull.libs')
             sys.exit(-1)
 
 
