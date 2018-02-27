@@ -71,11 +71,9 @@ class PclConan(ConanFile):
         vtk_cmake_rel_dir = f'lib/cmake/vtk-{vtk_major}'
         vtk_cmake_dir = f'{self.deps_cpp_info["vtk"].rootpath}/{vtk_cmake_rel_dir}'
 
-        args = []
-        if self.options.shared:
-            args.append('-DBUILD_SHARED_LIBS=ON')
-        args.append('-DCMAKE_CXX_FLAGS=-mtune=generic')
-        args.append('-DBOOST_ROOT:PATH=%s'%self.deps_cpp_info['boost'].rootpath)
+        cmake.definitions['BUILD_SHARED_LIBS:BOOL'] = 'ON' if self.options.shared else 'OFF'
+        cmake.definitions['CMAKE_CXX_FLAGS'] = '-mtune=generic'
+        cmake.definitions['BOOST_ROOT:PATH'] = self.deps_cpp_info['boost'].rootpath
 
         libqhull = None
         for l in self.deps_cpp_info['qhull'].libs:
@@ -87,23 +85,23 @@ class PclConan(ConanFile):
             sys.exit(-1)
 
 
-        args.append('-DQHULL_INCLUDE_DIR:PATH=%s'%os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].includedirs[0]))
-        args.append('-DQHULL_LIBRARY:FILEPATH=%s'%os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].libdirs[0], libqhull))
+        cmake.definitions['QHULL_INCLUDE_DIR:PATH'] = os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].includedirs[0])
+        cmake.definitions['QHULL_LIBRARY:FILEPATH'] = os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].libdirs[0], libqhull)
 
-        args.append('-DQt5Core_DIR:PATH=%s'%     os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5Core'))
-        args.append('-DQt5_DIR:PATH=%s'%         os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5'))
-        args.append('-DQt5Gui_DIR:PATH=%s'%      os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5Gui'))
-        args.append('-DQt5OpenGL_DIR:PATH=%s'%   os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5OpenGL'))
-        args.append('-DQt5Widgets_DIR:PATH=%s'%  os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5Widgets'))
+        cmake.definitions['Qt5Core_DIR:PATH']    = os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5Core')
+        cmake.definitions['Qt5_DIR:PATH']        = os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5')
+        cmake.definitions['Qt5Gui_DIR:PATH']     = os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5Gui')
+        cmake.definitions['Qt5OpenGL_DIR:PATH']  = os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5OpenGL')
+        cmake.definitions['Qt5Widgets_DIR:PATH'] = os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5Widgets')
 
-        args.append('-DGTEST_ROOT:PATH=%s'%self.deps_cpp_info['gtest'].rootpath)
-        args.append(f'-DVTK_DIR:PATH={vtk_cmake_dir}')
-        args.append('-DBUILD_surface_on_nurbs:BOOL=ON')
+        cmake.definitions['GTEST_ROOT:PATH']             = self.deps_cpp_info['gtest'].rootpath
+        cmake.definitions['VTK_DIR:PATH']                = vtk_cmake_dir
+        cmake.definitions['BUILD_surface_on_nurbs:BOOL'] = 'ON'
 
         # Despite provided this with pkg-config, and 1.7.2 finding these
         # successfully with pkg-config, cmake evidentally still requires
         # EIGEN_INCLUDE_DIR ... *shrugs*
-        args.append('-DEIGEN_INCLUDE_DIR:PATH=%s'%os.path.join(self.deps_cpp_info['eigen'].rootpath, 'include', 'eigen3'))
+        cmake.definitions['EIGEN_INCLUDE_DIR:PATH'] = os.path.join(self.deps_cpp_info['eigen'].rootpath, 'include', 'eigen3')
 
         def tweakPath(path):
             # CMake and pkg-config like forward slashes, hopefully there are no
@@ -121,7 +119,7 @@ class PclConan(ConanFile):
 
         cmake = CMake(self)
         with tools.environment_append(pkg_vars):
-            cmake.configure(source_folder=self.name, args=args)
+            cmake.configure(source_folder=self.name)
             cmake.build()
 
         cmake.install()
