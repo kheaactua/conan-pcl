@@ -27,8 +27,7 @@ class PclConan(ConanFile):
     default_options = ('shared=True')
 
     def build_requirements(self):
-        if 'Linux' == self.settings.os:
-            self.build_requires('pkg-config/0.29.2@ntc/stable')
+        self.build_requires('pkg-config/0.29.2@ntc/stable')
 
     def source(self):
 
@@ -60,7 +59,8 @@ class PclConan(ConanFile):
         self.options['qhull'].shared = self.options.shared
         self.options['vtk'].shared = self.options.shared
 
-        if self.options.shared and self.settings.os == 'Windows' and self.version == '1.8.1':
+        # I don't remember why this 'constraint' is here
+        if self.options.shared and self.settings.os == 'Windows' and self.version == '1.8.4':
             self.options['flann'].shared = self.options.shared
 
     def build(self):
@@ -105,12 +105,17 @@ class PclConan(ConanFile):
         # EIGEN_INCLUDE_DIR ... *shrugs*
         args.append('-DEIGEN_INCLUDE_DIR:PATH=%s'%os.path.join(self.deps_cpp_info['eigen'].rootpath, 'include', 'eigen3'))
 
+        def tweakPath(path):
+            # CMake and pkg-config like forward slashes, hopefully there are no
+            # spaces or any other character like that
+            return re.sub(r'\\', r'/', path)
+
         pkg_vars = {
-            'PKG_CONFIG_eigen3_PREFIX': self.deps_cpp_info['eigen'].rootpath,
-            'PKG_CONFIG_flann_PREFIX':  self.deps_cpp_info['flann'].rootpath,
-            'PKG_CONFIG_PATH': ':'.join([
-                os.path.join(self.deps_cpp_info['eigen'].rootpath, 'share', 'pkgconfig'),
-                os.path.join(self.deps_cpp_info['flann'].rootpath, 'lib', 'pkgconfig'),
+            'PKG_CONFIG_eigen3_PREFIX': tweakPath(self.deps_cpp_info['eigen'].rootpath),
+            'PKG_CONFIG_flann_PREFIX':  tweakPath(self.deps_cpp_info['flann'].rootpath),
+            'PKG_CONFIG_PATH': (';' if 'Windows' == self.settings.os else ':').join([
+                tweakPath(os.path.join(self.deps_cpp_info['eigen'].rootpath, 'share', 'pkgconfig')),
+                tweakPath(os.path.join(self.deps_cpp_info['flann'].rootpath, 'lib', 'pkgconfig')),
             ])
         }
 
@@ -136,12 +141,12 @@ class PclConan(ConanFile):
             data = f.read()
 
         sub_map = {
-            'eigen': os.path.join('${CONAN_INCLUDE_DIRS_EIGEN}', 'eigen3'),
+            'eigen': '${CONAN_INCLUDE_DIRS_EIGEN}/eigen3',
             'boost': '${CONAN_INCLUDE_DIRS_BOOST}',
             'flann': '${CONAN_INCLUDE_DIRS_FLANN}',
             'qhull': '${CONAN_INCLUDE_DIRS_QHULL}',
-            'vtk':   os.path.join('${CONAN_VTK_ROOT}', vtk_cmake_rel_dir),
-            'pcl':   os.path.join('${CONAN_PCL_ROOT}', 'pcl')
+            'vtk':   '${CONAN_VTK_ROOT}/' + vtk_cmake_rel_dir,
+            'pcl':   '${CONAN_PCL_ROOT}/pcl'
         }
 
         # https://regex101.com/r/fZxj7i/1
