@@ -86,7 +86,8 @@ class PclConan(ConanFile):
         if 'Windows' == self.settings.os:
             cmake.definitions['PCL_BUILD_WITH_BOOST_DYNAMIC_LINKING_WIN32:BOOL'] = 'ON' if self.options['boost'].shared else 'OFF'
 
-        cmake.definitions['CMAKE_CXX_FLAGS'] = '-mtune=generic'
+        if self.settings.compiler in ['gcc']:
+            cmake.definitions['CMAKE_CXX_FLAGS'] = '-mtune=generic'
         cmake.definitions['BOOST_ROOT:PATH'] = tweakPath(self.deps_cpp_info['boost'].rootpath)
 
         libqhull = None
@@ -126,6 +127,16 @@ class PclConan(ConanFile):
                 tweakPath(os.path.join(self.deps_cpp_info['flann'].rootpath, 'lib', 'pkgconfig')),
             ])
         }
+
+        # Debug
+        s = '\nEnvironment:\n'
+        for k,v in pkg_vars.items():
+            s += ' - %s=%s\n'%(k, v)
+        self.output.info(s)
+        s = '\nCMake Definitions:\n'
+        for k,v in cmake.definitions.items():
+            s += ' - %s=%s\n'%(k, v)
+        self.output.info(s)
 
         with tools.environment_append(pkg_vars):
             cmake.configure(source_folder=self.name)
