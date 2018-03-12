@@ -99,6 +99,7 @@ class PclConan(ConanFile):
             self.output.error('Could not find QHULL library in qhull.libs')
             sys.exit(-1)
 
+        cmake.definitions['CMAKE_CXX_FLAGS'] = '-fPIC'
 
         cmake.definitions['QHULL_INCLUDE_DIR:PATH'] = tweakPath(os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].includedirs[0]))
         cmake.definitions['QHULL_LIBRARY:FILEPATH'] = tweakPath(os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].libdirs[0], libqhull))
