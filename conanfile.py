@@ -21,10 +21,13 @@ class PclConan(ConanFile):
         'qt/[>=5.3.2]@ntc/stable',
         'gtest/[>=1.8.0]@lasote/stable',
     )
-    options = {
+
+    options         = {
         'shared': [True, False],
+        'fPIC':   [True, False],
+        'cxx11':  [True, False],
     }
-    default_options = ('shared=True')
+    default_options = ('shared=True', 'fPIC=True', 'cxx11=True')
 
     def build_requirements(self):
         self.build_requires('pkg-config/0.29.2@ntc/stable')
@@ -55,13 +58,19 @@ class PclConan(ConanFile):
 
     def configure(self):
         self.options['boost'].shared = self.options.shared
+        self.options['boost'].fPIC   = True
         self.options['gtest'].shared = self.options.shared
+
         self.options['qhull'].shared = self.options.shared
+        self.options['qhull'].cxx11  = self.options.cxx11
+
         self.options['vtk'].shared = self.options.shared
+        self.options['vtk'].cxx11  = self.options.cxx11
 
         # I don't remember why this 'constraint' is here
         if self.options.shared and self.settings.os == 'Windows' and self.version == '1.8.4':
             self.options['flann'].shared = self.options.shared
+        self.options['flann'].cxx11 = self.options.cxx11
 
     def build(self):
 
@@ -86,8 +95,9 @@ class PclConan(ConanFile):
         if 'Windows' == self.settings.os:
             cmake.definitions['PCL_BUILD_WITH_BOOST_DYNAMIC_LINKING_WIN32:BOOL'] = 'ON' if self.options['boost'].shared else 'OFF'
 
+        cxx_flags = []
         if self.settings.compiler in ['gcc']:
-            cmake.definitions['CMAKE_CXX_FLAGS'] = '-mtune=generic'
+            cxx_flags.append('-mtune=generic')
         cmake.definitions['BOOST_ROOT:PATH'] = tweakPath(self.deps_cpp_info['boost'].rootpath)
 
         libqhull = None
@@ -99,7 +109,13 @@ class PclConan(ConanFile):
             self.output.error('Could not find QHULL library in qhull.libs')
             sys.exit(-1)
 
-        cmake.definitions['CMAKE_CXX_FLAGS'] = '-fPIC'
+        if self.options.fPIC:
+            cxx_flags.append('-fPIC')
+        if self.options.cxx11:
+            cxx_flags.append('-std=c++11')
+        if self.settings.compiler == 'gcc':
+            cxx_flags.append('-frecord-gcc-switches')
+        cmake.definitions['CMAKE_CXX_FLAGS:STRING'] = ' '.join(cxx_flags)
 
         cmake.definitions['QHULL_INCLUDE_DIR:PATH'] = tweakPath(os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].includedirs[0]))
         cmake.definitions['QHULL_LIBRARY:FILEPATH'] = tweakPath(os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].libdirs[0], libqhull))
