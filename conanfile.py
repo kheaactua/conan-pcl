@@ -20,7 +20,9 @@ class PclConan(ConanFile):
         'vtk/[>=5.6.1]@ntc/stable',
         'qt/[>=5.3.2]@ntc/stable',
         'gtest/[>=1.8.0]@lasote/stable',
+        'helpers/[>=0.1]@ntc/stable',
     )
+    build_requires = 'pkg-config/0.29.2@ntc/stable'
 
     options         = {
         'shared': [True, False],
@@ -29,8 +31,29 @@ class PclConan(ConanFile):
     }
     default_options = ('shared=True', 'fPIC=True', 'cxx11=True')
 
-    def build_requirements(self):
-        self.build_requires('pkg-config/0.29.2@ntc/stable')
+    def config_options(self):
+        """ First configuration step. Only settings are defined. Options can be removed
+        according to these settings
+        """
+        if self.settings.compiler == "Visual Studio":
+            self.options.remove("fPIC")
+
+    def configure(self):
+        self.options['boost'].shared = self.options.shared
+        if self.settings.compiler != "Visual Studio":
+            self.options['boost'].fPIC = True
+        self.options['gtest'].shared = self.options.shared
+
+        self.options['qhull'].shared = self.options.shared
+        self.options['qhull'].cxx11  = self.options.cxx11
+
+        self.options['vtk'].shared = self.options.shared
+        self.options['vtk'].cxx11  = self.options.cxx11
+
+        # I don't remember why this 'constraint' is here
+        if self.options.shared and self.settings.os == 'Windows' and self.version == '1.8.4':
+            self.options['flann'].shared = self.options.shared
+        self.options['flann'].cxx11 = self.options.cxx11
 
     def source(self):
 
@@ -56,21 +79,9 @@ class PclConan(ConanFile):
             self.run(f'git clone https://github.com/PointCloudLibrary/pcl.git {self.name}')
             self.run(f'cd {self.name} && git checkout pcl-{self.version}')
 
-    def configure(self):
-        self.options['boost'].shared = self.options.shared
-        self.options['boost'].fPIC   = True
-        self.options['gtest'].shared = self.options.shared
-
-        self.options['qhull'].shared = self.options.shared
-        self.options['qhull'].cxx11  = self.options.cxx11
-
-        self.options['vtk'].shared = self.options.shared
-        self.options['vtk'].cxx11  = self.options.cxx11
-
-        # I don't remember why this 'constraint' is here
-        if self.options.shared and self.settings.os == 'Windows' and self.version == '1.8.4':
-            self.options['flann'].shared = self.options.shared
-        self.options['flann'].cxx11 = self.options.cxx11
+        if self.settings.compiler == 'gcc':
+            import cmake_helpers
+            cmake_helpers.wrapCMakeFile(os.path.join(self.source_folder, self.name), output_func=self.output.info)
 
     def build(self):
 
@@ -95,9 +106,6 @@ class PclConan(ConanFile):
         if 'Windows' == self.settings.os:
             cmake.definitions['PCL_BUILD_WITH_BOOST_DYNAMIC_LINKING_WIN32:BOOL'] = 'ON' if self.options['boost'].shared else 'OFF'
 
-        cxx_flags = []
-        if self.settings.compiler in ['gcc']:
-            cxx_flags.append('-mtune=generic')
         cmake.definitions['BOOST_ROOT:PATH'] = tweakPath(self.deps_cpp_info['boost'].rootpath)
 
         libqhull = None
@@ -109,13 +117,18 @@ class PclConan(ConanFile):
             self.output.error('Could not find QHULL library in qhull.libs')
             sys.exit(-1)
 
-        if self.options.fPIC:
-            cxx_flags.append('-fPIC')
+        if 'fPIC' in self.options and self.options.fPIC:
+            cmake.definitions['CMAKE_POSITION_INDEPENDENT_CODE'] = 'ON'
         if self.options.cxx11:
-            cxx_flags.append('-std=c++11')
-        if self.settings.compiler == 'gcc':
+            cmake.definitions['CMAKE_CXX_STANDARD'] = 11
+
+        cxx_flags = []
+        if self.settings.compiler in ['gcc']:
+            cxx_flags.append('-mtune=generic')
             cxx_flags.append('-frecord-gcc-switches')
-        cmake.definitions['CMAKE_CXX_FLAGS:STRING'] = ' '.join(cxx_flags)
+
+        if len(cxx_flags):
+            cmake.definitions['ADDITIONAL_CXX_FLAGS:STRING'] = ' '.join(cxx_flags)
 
         cmake.definitions['QHULL_INCLUDE_DIR:PATH'] = tweakPath(os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].includedirs[0]))
         cmake.definitions['QHULL_LIBRARY:FILEPATH'] = tweakPath(os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].libdirs[0], libqhull))
