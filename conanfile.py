@@ -182,11 +182,12 @@ class PclConan(ConanFile):
         """
         Insert some variables into the PCL find script generated in the
         build so that we can use it in our CMake scripts
+
+        TODO consider/experiment using CMake.patch_config_paths http://docs.conan.io/en/latest/reference/build_helpers/cmake.html
         """
 
         # Now, run some regex's through the
-        with open(f'{path}/PCLConfig.cmake') as f:
-            data = f.read()
+        with open(f'{path}/PCLConfig.cmake') as f: data = f.read()
 
         sub_map = {
             'eigen': '${CONAN_INCLUDE_DIRS_EIGEN}/eigen3',
@@ -208,8 +209,7 @@ class PclConan(ConanFile):
             else:
                 self.output.warn('Could not find %s'%pkg)
 
-        outp = open(f'{path}/PCLConfig.cmake', 'w')
-        outp.write(data)
+        with open(f'{path}/PCLConfig.cmake', 'w') as f: f.write(data)
 
     def package(self):
         pass
