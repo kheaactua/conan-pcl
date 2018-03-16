@@ -48,7 +48,6 @@ class PclConan(ConanFile):
         self.options['qhull'].cxx11  = self.options.cxx11
 
         self.options['vtk'].shared = self.options.shared
-        self.options['vtk'].cxx11  = self.options.cxx11
 
         # I don't remember why this 'constraint' is here
         if self.options.shared and self.settings.os == 'Windows' and self.version == '1.8.4':
