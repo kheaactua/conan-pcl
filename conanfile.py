@@ -83,26 +83,20 @@ class PclConan(ConanFile):
 
     def build(self):
 
+        # Import from helpers/x@ntc/stable
+        from platform_helpers import adjustPath, joinPaths
+
         vtk_major = '.'.join(self.deps_cpp_info['vtk'].version.split('.')[:2])
 
         # TODO See if we can use self.deps_cpp_info['vtk'].res
         vtk_cmake_rel_dir = f'lib/cmake/vtk-{vtk_major}'
         vtk_cmake_dir = f'{self.deps_cpp_info["vtk"].rootpath}/{vtk_cmake_rel_dir}'
 
-        def tweakPath(path):
-            # CMake and pkg-config like forward slashes, hopefully there are no
-            # spaces or any other character like that
-            if 'Windows' == self.settings.os:
-                return re.sub(r'\\', r'/', path)
-            else:
-                return path
-
         # Create our CMake generator
         cmake = CMake(self)
 
         # Boost
-        cmake.definitions['BOOST_ROOT:PATH'] = tweakPath(self.deps_cpp_info['boost'].rootpath)
-
+        cmake.definitions['BOOST_ROOT:PATH'] = adjustPath(self.deps_cpp_info['boost'].rootpath)
 
         if 'fPIC' in self.options and self.options.fPIC:
             cmake.definitions['CMAKE_POSITION_INDEPENDENT_CODE'] = 'ON'
@@ -117,13 +111,14 @@ class PclConan(ConanFile):
         if len(cxx_flags):
             cmake.definitions['ADDITIONAL_CXX_FLAGS:STRING'] = ' '.join(cxx_flags)
 
-        cmake.definitions['QHULL_ROOT:PATH']     = tweakPath(os.path.join(self.deps_cpp_info['qhull'].rootpath))
+        # QHull
+        cmake.definitions['QHULL_ROOT:PATH'] = adjustPath(self.deps_cpp_info['qhull'].rootpath)
 
         # GTest
-        cmake.definitions['GTEST_ROOT:PATH']             = self.deps_cpp_info['gtest'].rootpath
+        cmake.definitions['GTEST_ROOT:PATH'] = adjustPath(self.deps_cpp_info['gtest'].rootpath)
 
         # VTK
-        cmake.definitions['VTK_DIR:PATH']                = vtk_cmake_dir
+        cmake.definitions['VTK_DIR:PATH']    = adjustPath(vtk_cmake_dir)
 
         # PCL Options
         cmake.definitions['BUILD_surface_on_nurbs:BOOL'] = 'ON'
@@ -135,28 +130,25 @@ class PclConan(ConanFile):
         # Qt exposes pkg-config files (at least on Linux, on Windows there are
         # .prl files *shrugs*, but PCL (pcl_find_qt5.cmake) doesn't use this.
         for p in ['Core', 'Gui', 'OpenGL', 'Widgets']:
-            cmake.definitions[f'Qt5{p}_DIR:PATH'] = tweakPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', f'Qt5{p}'))
-        cmake.definitions['QT_QMAKE_EXECUTABLE:PATH'] = tweakPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'bin', 'qmake'))
+            cmake.definitions[f'Qt5{p}_DIR:PATH'] = adjustPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', f'Qt5{p}'))
+        cmake.definitions['QT_QMAKE_EXECUTABLE:PATH'] = adjustPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'bin', 'qmake'))
 
         pkg_vars = {}
         pkg_config_path = []
 
         # Eigen
-        pkg_vars['PKG_CONFIG_eigen3_PREFIX'] = tweakPath(self.deps_cpp_info['eigen'].rootpath)
+        pkg_vars['PKG_CONFIG_eigen3_PREFIX'] = adjustPath(self.deps_cpp_info['eigen'].rootpath)
         pkg_config_path.append(os.path.join(self.deps_cpp_info['eigen'].rootpath, 'share', 'pkgconfig'))
         # Despite provided this with pkg-config, and 1.7.2 finding these
         # successfully with pkg-config, cmake evidentially still requires
         # EIGEN_INCLUDE_DIR ... *shrugs*
-        cmake.definitions['EIGEN_INCLUDE_DIR:PATH'] = tweakPath(os.path.join(self.deps_cpp_info['eigen'].rootpath, 'include', 'eigen3'))
+        cmake.definitions['EIGEN_INCLUDE_DIR:PATH'] = adjustPath(os.path.join(self.deps_cpp_info['eigen'].rootpath, 'include', 'eigen3'))
 
         # Flann
-        pkg_vars['PKG_CONFIG_flann_PREFIX']  = tweakPath(self.deps_cpp_info['flann'].rootpath)
+        pkg_vars['PKG_CONFIG_flann_PREFIX']  = adjustPath(self.deps_cpp_info['flann'].rootpath)
         pkg_config_path.append(os.path.join(self.deps_cpp_info['flann'].rootpath, 'lib', 'pkgconfig'))
 
-        pkg_vars['PKG_CONFIG_PATH'] = (';' if 'Windows' == self.settings.os else ':').join(
-            list(map(lambda p: tweakPath(p), pkg_config_path))
-        )
-
+        pkg_vars['PKG_CONFIG_PATH'] = joinPaths( list(map(adjustPath, pkg_config_path)) )
 
         # Debug
         s = '\nEnvironment:\n'
@@ -225,7 +217,7 @@ class PclConan(ConanFile):
         # to the package info such that we can simply use the conan package if
         # we wish.
 
-        (pcl_release, pcl_major, pcl_minor) = [int(i) for i in self.version.split('.')]
+        (pcl_release, pcl_major) = [int(i) for i in self.version.split('.')[:2]]
         pcl_version_str = f'{pcl_release}.{pcl_major}'
 
         # Add the directory with CMake.. Not sure if this is a good use of resdirs
