@@ -44,7 +44,6 @@ class PclConan(ConanFile):
             self.options['boost'].fPIC = True
         self.options['gtest'].shared = self.options.shared
 
-        self.options['qhull'].shared = self.options.shared
         self.options['qhull'].cxx11  = self.options.cxx11
 
         self.options['vtk'].shared = self.options.shared
