@@ -1,4 +1,4 @@
-import re, os, sys, shutil
+import re, os, shutil
 from conans import ConanFile, CMake, tools
 
 
@@ -100,20 +100,9 @@ class PclConan(ConanFile):
         # Create our CMake generator
         cmake = CMake(self)
 
-        cmake.definitions['BUILD_SHARED_LIBS:BOOL'] = 'ON' if self.options.shared else 'OFF'
-        if 'Windows' == self.settings.os:
-            cmake.definitions['PCL_BUILD_WITH_BOOST_DYNAMIC_LINKING_WIN32:BOOL'] = 'ON' if self.options['boost'].shared else 'OFF'
-
+        # Boost
         cmake.definitions['BOOST_ROOT:PATH'] = tweakPath(self.deps_cpp_info['boost'].rootpath)
 
-        libqhull = None
-        for l in self.deps_cpp_info['qhull'].libs:
-            if re.search(r'qhull\d?', l):
-                libqhull = l
-                break
-        if libqhull is None:
-            self.output.error('Could not find QHULL library in qhull.libs')
-            sys.exit(-1)
 
         if 'fPIC' in self.options and self.options.fPIC:
             cmake.definitions['CMAKE_POSITION_INDEPENDENT_CODE'] = 'ON'
@@ -128,33 +117,46 @@ class PclConan(ConanFile):
         if len(cxx_flags):
             cmake.definitions['ADDITIONAL_CXX_FLAGS:STRING'] = ' '.join(cxx_flags)
 
-        cmake.definitions['QHULL_INCLUDE_DIR:PATH'] = tweakPath(os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].includedirs[0]))
-        cmake.definitions['QHULL_LIBRARY:FILEPATH'] = tweakPath(os.path.join(self.deps_cpp_info['qhull'].rootpath, self.deps_cpp_info['qhull'].libdirs[0], libqhull))
+        cmake.definitions['QHULL_ROOT:PATH']     = tweakPath(os.path.join(self.deps_cpp_info['qhull'].rootpath))
 
-        cmake.definitions['Qt5Core_DIR:PATH']    = tweakPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5Core'))
-        cmake.definitions['Qt5_DIR:PATH']        = tweakPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5'))
-        cmake.definitions['Qt5Gui_DIR:PATH']     = tweakPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5Gui'))
-        cmake.definitions['Qt5OpenGL_DIR:PATH']  = tweakPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5OpenGL'))
-        cmake.definitions['Qt5Widgets_DIR:PATH'] = tweakPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', 'Qt5Widgets'))
-
+        # GTest
         cmake.definitions['GTEST_ROOT:PATH']             = self.deps_cpp_info['gtest'].rootpath
-        cmake.definitions['VTK_DIR:PATH']                = vtk_cmake_dir
-        cmake.definitions['BUILD_surface_on_nurbs:BOOL'] = 'ON'
 
+        # VTK
+        cmake.definitions['VTK_DIR:PATH']                = vtk_cmake_dir
+
+        # PCL Options
+        cmake.definitions['BUILD_surface_on_nurbs:BOOL'] = 'ON'
+        cmake.definitions['BUILD_SHARED_LIBS:BOOL'] = 'ON' if self.options.shared else 'OFF'
+        if 'Windows' == self.settings.os:
+            cmake.definitions['PCL_BUILD_WITH_BOOST_DYNAMIC_LINKING_WIN32:BOOL'] = 'ON' if self.options['boost'].shared else 'OFF'
+
+        # Qt
+        # Qt exposes pkg-config files (at least on Linux, on Windows there are
+        # .prl files *shrugs*, but PCL (pcl_find_qt5.cmake) doesn't use this.
+        for p in ['Core', 'Gui', 'OpenGL', 'Widgets']:
+            cmake.definitions[f'Qt5{p}_DIR:PATH'] = tweakPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', f'Qt5{p}'))
+        cmake.definitions['QT_QMAKE_EXECUTABLE:PATH'] = tweakPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'bin', 'qmake'))
+
+        pkg_vars = {}
+        pkg_config_path = []
+
+        # Eigen
+        pkg_vars['PKG_CONFIG_eigen3_PREFIX'] = tweakPath(self.deps_cpp_info['eigen'].rootpath)
+        pkg_config_path.append(os.path.join(self.deps_cpp_info['eigen'].rootpath, 'share', 'pkgconfig'))
         # Despite provided this with pkg-config, and 1.7.2 finding these
-        # successfully with pkg-config, cmake evidentally still requires
+        # successfully with pkg-config, cmake evidentially still requires
         # EIGEN_INCLUDE_DIR ... *shrugs*
         cmake.definitions['EIGEN_INCLUDE_DIR:PATH'] = tweakPath(os.path.join(self.deps_cpp_info['eigen'].rootpath, 'include', 'eigen3'))
 
+        # Flann
+        pkg_vars['PKG_CONFIG_flann_PREFIX']  = tweakPath(self.deps_cpp_info['flann'].rootpath)
+        pkg_config_path.append(os.path.join(self.deps_cpp_info['flann'].rootpath, 'lib', 'pkgconfig'))
 
-        pkg_vars = {
-            'PKG_CONFIG_eigen3_PREFIX': tweakPath(self.deps_cpp_info['eigen'].rootpath),
-            'PKG_CONFIG_flann_PREFIX':  tweakPath(self.deps_cpp_info['flann'].rootpath),
-            'PKG_CONFIG_PATH': (';' if 'Windows' == self.settings.os else ':').join([
-                tweakPath(os.path.join(self.deps_cpp_info['eigen'].rootpath, 'share', 'pkgconfig')),
-                tweakPath(os.path.join(self.deps_cpp_info['flann'].rootpath, 'lib', 'pkgconfig')),
-            ])
-        }
+        pkg_vars['PKG_CONFIG_PATH'] = (';' if 'Windows' == self.settings.os else ':').join(
+            list(map(lambda p: tweakPath(p), pkg_config_path))
+        )
+
 
         # Debug
         s = '\nEnvironment:\n'
@@ -173,6 +175,7 @@ class PclConan(ConanFile):
         cmake.install()
 
         # Fix up the CMake Find Script PCL generated
+        # TODO Look into experimental tools.patch_fongi_paths() function
         self.output.info('Inserting Conan variables in to the PCL CMake Find script.')
         self.fixFindPackage(cmake.build_folder, vtk_cmake_rel_dir)
 
@@ -232,43 +235,11 @@ class PclConan(ConanFile):
         # we use is include/pcl-1.8
         self.cpp_info.includedirs = [os.path.join('include', f'pcl-{pcl_version_str}')]
 
-        # Populate the libs.  Manually written.  Not sure how I could populate
-        # this automatically yet.
-        libs = [
-            'pcl_common',
-            'pcl_features',
-            'pcl_filters',
-            'pcl_io',
-            'pcl_io_ply',
-            'pcl_kdtree',
-            'pcl_keypoints',
-            'pcl_octree',
-            'pcl_outofcore',
-            'pcl_people',
-            'pcl_recognition',
-            'pcl_registration',
-            'pcl_sample_consensus',
-            'pcl_search',
-            'pcl_segmentation',
-            'pcl_surface',
-            'pcl_tracking',
-            'pcl_visualization',
-        ]
-        if pcl_major >= 8:
-            libs += ['pcl_stereo', 'pcl_ml']
+        # Populate the libs
+        self.cpp_info.libs = tools.collect_libs(self)
 
-        if 'Linux' == self.settings.os:
-            prefix = 'lib'
-            suffix = 'so' if self.options.shared else 'a'
-        else:
-            prefix = ''
-            suffix = 'lib'
-
-        if self.settings.os == "Linux":
-            self.cpp_info.libs = list(map((lambda name: f'{prefix}{name}.{suffix}'), libs))
-        else:
-            build_type = self.settings.build_type.lower()
-            self.cpp_info.libs = list(map((lambda name: f'{prefix}{name}_{build_type}.{suffix}'), libs))
-            self.cpp_info.libs = list(map((lambda name: name + '_release.dll'), libs))
+        if self.options.shared and 'Windows' == self.settings.os:
+            # Add our libs to PATH
+            self.env_info.path.append(os.path.join(self.package_folder, 'lib'))
 
 # vim: ts=4 sw=4 expandtab ffs=unix ft=python foldmethod=marker :
