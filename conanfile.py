@@ -20,7 +20,7 @@ class PclConan(ConanFile):
         'vtk/[>=5.6.1]@ntc/stable',
         'qt/[>=5.3.2]@ntc/stable',
         'gtest/[>=1.8.0]@lasote/stable',
-        'helpers/[>=0.1]@ntc/stable',
+        'helpers/[>=0.2]@ntc/stable',
     )
     build_requires = 'pkg-config/0.29.2@ntc/stable'
 
@@ -84,7 +84,7 @@ class PclConan(ConanFile):
     def build(self):
 
         # Import from helpers/x@ntc/stable
-        from platform_helpers import adjustPath, joinPaths
+        from platform_helpers import adjustPath
 
         vtk_major = '.'.join(self.deps_cpp_info['vtk'].version.split('.')[:2])
 
@@ -133,26 +133,16 @@ class PclConan(ConanFile):
             cmake.definitions[f'Qt5{p}_DIR:PATH'] = adjustPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', f'Qt5{p}'))
         cmake.definitions['QT_QMAKE_EXECUTABLE:PATH'] = adjustPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'bin', 'qmake'))
 
-        pkg_vars = {}
-        pkg_config_path = []
-
-        # Eigen
-        pkg_vars['PKG_CONFIG_eigen3_PREFIX'] = adjustPath(self.deps_cpp_info['eigen'].rootpath)
-        pkg_config_path.append(os.path.join(self.deps_cpp_info['eigen'].rootpath, 'share', 'pkgconfig'))
-        # Despite provided this with pkg-config, and 1.7.2 finding these
-        # successfully with pkg-config, cmake evidentially still requires
+        # Eigen: Despite being provided with pkg-config, and 1.7.2 finding
+        # these successfully with pkg-config, cmake evidentially still requires
         # EIGEN_INCLUDE_DIR ... *shrugs*
         cmake.definitions['EIGEN_INCLUDE_DIR:PATH'] = adjustPath(os.path.join(self.deps_cpp_info['eigen'].rootpath, 'include', 'eigen3'))
 
-        # Flann
-        pkg_vars['PKG_CONFIG_flann_PREFIX']  = adjustPath(self.deps_cpp_info['flann'].rootpath)
-        pkg_config_path.append(os.path.join(self.deps_cpp_info['flann'].rootpath, 'lib', 'pkgconfig'))
-
-        pkg_vars['PKG_CONFIG_PATH'] = joinPaths( list(map(adjustPath, pkg_config_path)) )
+        # Flann is found via pkg-config
 
         # Debug
         s = '\nEnvironment:\n'
-        for k,v in pkg_vars.items():
+        for k,v in os.environ.items():
             s += ' - %s=%s\n'%(k, v)
         self.output.info(s)
         s = '\nCMake Definitions:\n'
@@ -160,10 +150,8 @@ class PclConan(ConanFile):
             s += ' - %s=%s\n'%(k, v)
         self.output.info(s)
 
-        with tools.environment_append(pkg_vars):
-            cmake.configure(source_folder=self.name)
-            cmake.build()
-
+        cmake.configure(source_folder=self.name)
+        cmake.build()
         cmake.install()
 
         # Fix up the CMake Find Script PCL generated
@@ -233,5 +221,12 @@ class PclConan(ConanFile):
         if self.options.shared and 'Windows' == self.settings.os:
             # Add our libs to PATH
             self.env_info.path.append(os.path.join(self.package_folder, 'lib'))
+
+        # Populate the pkg-config environment variables
+        import site; site.addsitedir(self.deps_cpp_info['helpers'].rootpath) # Compensate for #2644
+        from platform_helpers import adjustPath, appendPkgConfigPath
+
+        self.env_info.PKG_CONFIG_PCL_PREFIX = adjustPath(self.package_folder)
+        appendPkgConfigPath(adjustPath(os.path.join(self.package_folder, 'lib', 'pkgconfig')), self.env_info)
 
 # vim: ts=4 sw=4 expandtab ffs=unix ft=python foldmethod=marker :
