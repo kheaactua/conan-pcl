@@ -209,7 +209,11 @@ class PclConan(ConanFile):
         pcl_version_str = f'{pcl_release}.{pcl_major}'
 
         # Add the directory with CMake.. Not sure if this is a good use of resdirs
-        self.cpp_info.resdirs = [os.path.join('share', f'pcl-{pcl_version_str}')]
+        if 'Windows' == platform.system():
+            # On Windows, this CMake file is in a different place
+            self.cpp_info.resdirs = [os.path.join(self.package_folder, 'cmake')]
+        else:
+            self.cpp_info.resdirs = [os.path.join(self.package_folder, 'share', f'pcl-{pcl_version_str}')]
 
         # Add the real include path, the default one points to include/ but the one
         # we use is include/pcl-1.8
