@@ -1,5 +1,6 @@
 import re, os, shutil
 from conans import ConanFile, CMake, tools
+from conans.model.version import Version
 
 
 class PclConan(ConanFile):
@@ -129,7 +130,10 @@ class PclConan(ConanFile):
         # Qt
         # Qt exposes pkg-config files (at least on Linux, on Windows there are
         # .prl files *shrugs*, but PCL (pcl_find_qt5.cmake) doesn't use this.
-        for p in ['Core', 'Gui', 'OpenGL', 'Widgets']:
+        qt_deps = ['Core', 'Gui', 'OpenGL', 'Widgets']
+        if '7' >= Version(str(self.deps_cpp_info['vtk'].version)):
+            qt_deps.append('') # VTK 7 wants Qt5Config (note p='' in Qt5{p}Config)
+        for p in qt_deps:
             cmake.definitions[f'Qt5{p}_DIR:PATH'] = adjustPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', f'Qt5{p}'))
         cmake.definitions['QT_QMAKE_EXECUTABLE:PATH'] = adjustPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'bin', 'qmake'))
 
@@ -140,24 +144,33 @@ class PclConan(ConanFile):
 
         # Flann is found via pkg-config
 
+        env_info = {}
+        if 'Linux' == self.settings.os:
+            # There's an issue when using boost with shared bzip2 where the shared
+            # lib path isn't exposed, and as such PCL can't link.  So here we
+            # inject the path into our linker path.
+            env_info['LD_LIBRARY_PATH'] = os.path.join(self.deps_cpp_info['bzip2'].rootpath, 'lib')
+
         # Debug
-        s = '\nEnvironment:\n'
+        s = '\nBase Environment:\n'
         for k,v in os.environ.items():
             s += ' - %s=%s\n'%(k, v)
         self.output.info(s)
+        if len(env_info.keys()):
+            s = '\nAdditional Environment:\n'
+            for k,v in env_info.items():
+                s += ' - %s=%s\n'%(k, v)
+            self.output.info(s)
         s = '\nCMake Definitions:\n'
         for k,v in cmake.definitions.items():
             s += ' - %s=%s\n'%(k, v)
         self.output.info(s)
 
-        cmake.configure(source_folder=self.name)
-        cmake.build()
-        cmake.install()
+        with tools.environment_append(env_info):
+            cmake.configure(source_folder=self.name)
+            cmake.build()
 
-        # Fix up the CMake Find Script PCL generated
-        # TODO Look into experimental tools.patch_fongi_paths() function
-        self.output.info('Inserting Conan variables in to the PCL CMake Find script.')
-        self.fixFindPackage(cmake.build_folder, vtk_cmake_rel_dir)
+        cmake.install()
 
     def fixFindPackage(self, path, vtk_cmake_rel_dir):
         """
@@ -193,7 +206,13 @@ class PclConan(ConanFile):
         with open(f'{path}/PCLConfig.cmake', 'w') as f: f.write(data)
 
     def package(self):
-        pass
+        # TODO See if we can use self.deps_cpp_info['vtk'].res
+        vtk_major = '.'.join(self.deps_cpp_info['vtk'].version.split('.')[:2])
+        vtk_cmake_rel_dir = f'lib/cmake/vtk-{vtk_major}'
+
+        # Fix up the CMake Find Script PCL generated
+        self.output.info('Inserting Conan variables in to the PCL CMake Find script.')
+        self.fixFindPackage(self.pcl_cmake_dir, vtk_cmake_rel_dir)
 
     def package_info(self):
         # PCL has a find script which populates variables holding include paths
@@ -209,11 +228,7 @@ class PclConan(ConanFile):
         pcl_version_str = f'{pcl_release}.{pcl_major}'
 
         # Add the directory with CMake.. Not sure if this is a good use of resdirs
-        if 'Windows' == platform.system():
-            # On Windows, this CMake file is in a different place
-            self.cpp_info.resdirs = [os.path.join(self.package_folder, 'cmake')]
-        else:
-            self.cpp_info.resdirs = [os.path.join(self.package_folder, 'share', f'pcl-{pcl_version_str}')]
+        self.cpp_info.resdirs = [self.pcl_cmake_dir]
 
         # Add the real include path, the default one points to include/ but the one
         # we use is include/pcl-1.8
@@ -227,10 +242,23 @@ class PclConan(ConanFile):
             self.env_info.path.append(os.path.join(self.package_folder, 'lib'))
 
         # Populate the pkg-config environment variables
-        import site; site.addsitedir(self.deps_cpp_info['helpers'].rootpath) # Compensate for #2644
-        from platform_helpers import adjustPath, appendPkgConfigPath
+        with tools.pythonpath(self):
+            from platform_helpers import adjustPath, appendPkgConfigPath
 
-        self.env_info.PKG_CONFIG_PCL_PREFIX = adjustPath(self.package_folder)
-        appendPkgConfigPath(adjustPath(os.path.join(self.package_folder, 'lib', 'pkgconfig')), self.env_info)
+            self.env_info.PKG_CONFIG_PCL_PREFIX = adjustPath(self.package_folder)
+            appendPkgConfigPath(adjustPath(os.path.join(self.package_folder, 'lib', 'pkgconfig')), self.env_info)
+
+    @property
+    def pcl_cmake_dir(self):
+        (pcl_release, pcl_major) = [int(i) for i in self.version.split('.')[:2]]
+        pcl_version_str = f'{pcl_release}.{pcl_major}'
+
+        if 'Windows' == self.settings.os:
+            # On Windows, this CMake file is in a different place
+            d = os.path.join(self.package_folder, 'cmake')
+        else:
+            d = os.path.join(self.package_folder, 'share', f'pcl-{pcl_version_str}')
+
+        return d
 
 # vim: ts=4 sw=4 expandtab ffs=unix ft=python foldmethod=marker :
