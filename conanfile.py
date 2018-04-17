@@ -172,16 +172,21 @@ class PclConan(ConanFile):
 
         cmake.install()
 
-    def fixFindPackage(self, path, vtk_cmake_rel_dir):
+    def fixFindPackage(self, src, dst, vtk_cmake_rel_dir):
         """
         Insert some variables into the PCL find script generated in the
         build so that we can use it in our CMake scripts
 
         TODO consider/experiment using CMake.patch_config_paths http://docs.conan.io/en/latest/reference/build_helpers/cmake.html
+
+        @param src Source folder of PCLConfig.cmake (build directory)
+        @param dst Destination for PCLConfig.cmake (package folder)
         """
 
+        self.output.info('Fixing PCLConfig.config found at %s'%src)
+
         # Now, run some regex's through the
-        with open(f'{path}/PCLConfig.cmake') as f: data = f.read()
+        with open(f'{src}/PCLConfig.cmake') as f: data = f.read()
 
         sub_map = {
             'eigen': '${CONAN_INCLUDE_DIRS_EIGEN}/eigen3',
@@ -203,7 +208,13 @@ class PclConan(ConanFile):
             else:
                 self.output.warn('Could not find %s'%pkg)
 
-        with open(f'{path}/PCLConfig.cmake', 'w') as f: f.write(data)
+
+        self.output.info('Installing fixed PCLConfig.config to %s'%dst)
+        if not os.path.exists(os.path.dirname(dst)):
+            # Not sure how this could not exist, but just in case..
+            os.makedirs(os.path.dirname(dst))
+
+        with open(f'{dst}/PCLConfig.cmake', 'w') as f: f.write(data)
 
     def package(self):
         # TODO See if we can use self.deps_cpp_info['vtk'].res
@@ -212,7 +223,11 @@ class PclConan(ConanFile):
 
         # Fix up the CMake Find Script PCL generated
         self.output.info('Inserting Conan variables in to the PCL CMake Find script.')
-        self.fixFindPackage(self.pcl_cmake_dir, vtk_cmake_rel_dir)
+        self.fixFindPackage(
+            src=self.build_folder,
+            dst=self.pcl_cmake_dir,
+            vtk_cmake_rel_dir=vtk_cmake_rel_dir
+        )
 
     def package_info(self):
         # PCL has a find script which populates variables holding include paths
