@@ -20,7 +20,7 @@ class PclConan(ConanFile):
         'vtk/[>=5.6.1]@ntc/stable',
         'qt/[>=5.3.2]@ntc/stable',
         'gtest/[>=1.8.0]@lasote/stable',
-        'helpers/[>=0.2]@ntc/stable',
+        'helpers/[>=0.3]@ntc/stable',
     )
     build_requires = 'pkg-config/0.29.2@ntc/stable'
 
