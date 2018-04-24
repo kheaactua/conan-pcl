@@ -16,7 +16,6 @@ class PclConan(ConanFile):
     description  = 'Point cloud library'
     settings     = 'os', 'compiler', 'build_type', 'arch'
     build_policy = 'missing'
-    generators   = 'cmake'
     requires = (
         'boost/[>1.46]@ntc/stable',
         'eigen/[>=3.2.0]@ntc/stable',
@@ -37,9 +36,6 @@ class PclConan(ConanFile):
     default_options = ('shared=True', 'fPIC=True', 'cxx11=True')
 
     def config_options(self):
-        """ First configuration step. Only settings are defined. Options can be removed
-        according to these settings
-        """
         if self.settings.compiler == "Visual Studio":
             self.options.remove("fPIC")
 
@@ -86,7 +82,10 @@ class PclConan(ConanFile):
             import cmake_helpers
             cmake_helpers.wrapCMakeFile(os.path.join(self.source_folder, self.name), output_func=self.output.info)
 
-    def build(self):
+    def _set_up_cmake(self):
+        """
+        Set up the CMake generator so that it can be used in build() and package()
+        """
 
         # Import from helpers/x@ntc/stable
         from platform_helpers import adjustPath
@@ -155,6 +154,12 @@ class PclConan(ConanFile):
             # inject the path into our linker path.
             env_info['LD_LIBRARY_PATH'] = os.path.join(self.deps_cpp_info['bzip2'].rootpath, 'lib')
 
+        return cmake, env_info
+
+    def build(self):
+
+        cmake, env_info = self._set_up_cmake()
+
         # Debug
         s = '\nBase Environment:\n'
         for k,v in os.environ.items():
@@ -173,8 +178,6 @@ class PclConan(ConanFile):
         with tools.environment_append(env_info):
             cmake.configure(source_folder=self.name)
             cmake.build()
-
-        cmake.install()
 
     def fixFindPackage(self, src, dst, vtk_cmake_rel_dir):
         """
@@ -221,6 +224,13 @@ class PclConan(ConanFile):
         with open(f'{dst}/PCLConfig.cmake', 'w') as f: f.write(data)
 
     def package(self):
+        cmake, env_info = self._set_up_cmake()
+
+        with tools.environment_append(env_info):
+            cmake.configure(source_folder=self.name)
+
+        cmake.install()
+
         # TODO See if we can use self.deps_cpp_info['vtk'].res
         vtk_major = '.'.join(self.deps_cpp_info['vtk'].version.split('.')[:2])
         vtk_cmake_rel_dir = f'lib/cmake/vtk-{vtk_major}'
