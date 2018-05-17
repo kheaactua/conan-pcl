@@ -16,6 +16,7 @@ class PclConan(ConanFile):
     description  = 'Point cloud library'
     settings     = 'os', 'compiler', 'build_type', 'arch'
     build_policy = 'missing'
+    exports      = '*.patch'
     requires = (
         'boost/[>1.46]@ntc/stable',
         'eigen/[>=3.2.0]@ntc/stable',
@@ -76,11 +77,15 @@ class PclConan(ConanFile):
                 shutil.move(f'pcl-pcl-{self.version}', self.name)
         else:
             self.run(f'git clone https://github.com/PointCloudLibrary/pcl.git {self.name}')
-            self.run(f'cd {self.name} && git checkout pcl-{self.version}')
+            self.run(f'cd {self.name} && git checkout pcl')
 
         if self.settings.compiler == 'gcc':
             import cmake_helpers
             cmake_helpers.wrapCMakeFile(os.path.join(self.source_folder, self.name), output_func=self.output.info)
+
+        patch_file = f'{self.version}.patch'
+        if os.path.exists(patch_file):
+            tools.patch(patch_file=patch_file, base_path='pcl')
 
     def _set_up_cmake(self):
         """
