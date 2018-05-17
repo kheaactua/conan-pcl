@@ -184,50 +184,6 @@ class PclConan(ConanFile):
             cmake.configure(source_folder=self.name)
             cmake.build()
 
-    def fixFindPackage(self, src, dst, vtk_cmake_rel_dir):
-        """
-        Insert some variables into the PCL find script generated in the
-        build so that we can use it in our CMake scripts
-
-        TODO consider/experiment using CMake.patch_config_paths http://docs.conan.io/en/latest/reference/build_helpers/cmake.html
-
-        @param src Source folder of PCLConfig.cmake (build directory)
-        @param dst Destination for PCLConfig.cmake (package folder)
-        """
-
-        self.output.info('Fixing PCLConfig.config found at %s'%src)
-
-        # Now, run some regex's through the
-        with open(f'{src}/PCLConfig.cmake') as f: data = f.read()
-
-        sub_map = {
-            'eigen': '${CONAN_INCLUDE_DIRS_EIGEN}/eigen3',
-            'boost': '${CONAN_INCLUDE_DIRS_BOOST}',
-            'flann': '${CONAN_INCLUDE_DIRS_FLANN}',
-            'qhull': '${CONAN_INCLUDE_DIRS_QHULL}',
-            'vtk':   '${CONAN_VTK_ROOT}/' + vtk_cmake_rel_dir,
-            'pcl':   '${CONAN_PCL_ROOT}/pcl'
-        }
-
-        # https://regex101.com/r/fZxj7i/1
-        regex = r"(?<=\").*?conan.*?(?P<package>(%s)).*?(?=\")"
-
-        for pkg, rep in sub_map.items():
-            r = regex%pkg
-            m = re.search(r, data)
-            if m:
-                data = data[0:m.start()] + rep + data[m.end():]
-            else:
-                self.output.warn('Could not find %s'%pkg)
-
-
-        self.output.info('Installing fixed PCLConfig.config to %s'%dst)
-        if not os.path.exists(os.path.dirname(dst)):
-            # Not sure how this could not exist, but just in case..
-            os.makedirs(os.path.dirname(dst))
-
-        with open(f'{dst}/PCLConfig.cmake', 'w') as f: f.write(data)
-
     def package(self):
         cmake, env_info = self._set_up_cmake()
 
@@ -281,6 +237,50 @@ class PclConan(ConanFile):
 
             self.env_info.PKG_CONFIG_PCL_PREFIX = adjustPath(self.package_folder)
             appendPkgConfigPath(adjustPath(os.path.join(self.package_folder, 'lib', 'pkgconfig')), self.env_info)
+
+    def fixFindPackage(self, src, dst, vtk_cmake_rel_dir):
+        """
+        Insert some variables into the PCL find script generated in the
+        build so that we can use it in our CMake scripts
+
+        TODO consider/experiment using CMake.patch_config_paths http://docs.conan.io/en/latest/reference/build_helpers/cmake.html
+
+        @param src Source folder of PCLConfig.cmake (build directory)
+        @param dst Destination for PCLConfig.cmake (package folder)
+        """
+
+        self.output.info('Fixing PCLConfig.config found at %s'%src)
+
+        # Now, run some regex's through the
+        with open(f'{src}/PCLConfig.cmake') as f: data = f.read()
+
+        sub_map = {
+            'eigen': '${CONAN_INCLUDE_DIRS_EIGEN}/eigen3',
+            'boost': '${CONAN_INCLUDE_DIRS_BOOST}',
+            'flann': '${CONAN_INCLUDE_DIRS_FLANN}',
+            'qhull': '${CONAN_INCLUDE_DIRS_QHULL}',
+            'vtk':   '${CONAN_VTK_ROOT}/' + vtk_cmake_rel_dir,
+            'pcl':   '${CONAN_PCL_ROOT}/pcl'
+        }
+
+        # https://regex101.com/r/fZxj7i/1
+        regex = r"(?<=\").*?conan.*?(?P<package>(%s)).*?(?=\")"
+
+        for pkg, rep in sub_map.items():
+            r = regex%pkg
+            m = re.search(r, data)
+            if m:
+                data = data[0:m.start()] + rep + data[m.end():]
+            else:
+                self.output.warn('Could not find %s'%pkg)
+
+
+        self.output.info('Installing fixed PCLConfig.config to %s'%dst)
+        if not os.path.exists(os.path.dirname(dst)):
+            # Not sure how this could not exist, but just in case..
+            os.makedirs(os.path.dirname(dst))
+
+        with open(f'{dst}/PCLConfig.cmake', 'w') as f: f.write(data)
 
     @property
     def pcl_cmake_dir(self):
