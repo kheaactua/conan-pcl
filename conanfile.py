@@ -188,9 +188,15 @@ class PclConan(ConanFile):
         cmake, env_info = self._set_up_cmake()
 
         with tools.environment_append(env_info):
-            cmake.configure(source_folder=self.name)
 
-        cmake.install()
+            # When cmake is called twice, pcl_find_qt5.cmake for some reason
+            # has QT_USE_FILE set to a system path, which fails the
+            # configuration.  So this line adjusts it to what it should be by
+            # default. (wtf..)
+            cmake.definitions['QT_USE_FILE'] = os.path.join(self.build_folder, 'use-qt5.cmake')
+
+            cmake.configure(source_folder=self.name, build_folder=self.build_folder)
+            cmake.install()
 
         # TODO See if we can use self.deps_cpp_info['vtk'].res
         vtk_major = '.'.join(self.deps_cpp_info['vtk'].version.split('.')[:2])
