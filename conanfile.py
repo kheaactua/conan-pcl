@@ -27,7 +27,6 @@ class PclConan(ConanFile):
         'gtest/[>=1.8.0]@bincrafters/stable',
         'helpers/[>=0.3]@ntc/stable',
     )
-    build_requires = 'pkg-config/0.29.2@ntc/stable'
 
     options         = {
         'shared': [True, False],
