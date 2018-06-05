@@ -117,7 +117,8 @@ class PclConan(ConanFile):
 
         cxx_flags = []
         if self.settings.compiler in ['gcc']:
-            cxx_flags.append('-mtune=generic')
+            if not self.settings.get_safe('arch').startswith('arm'):
+                cxx_flags.append('-mtune=generic')
             cxx_flags.append('-frecord-gcc-switches')
 
         if len(cxx_flags):
