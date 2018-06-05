@@ -23,17 +23,17 @@ class PclConan(ConanFile):
         'flann/[>=1.6.8]@ntc/stable',
         'qhull/2015.2@ntc/stable',
         'vtk/[>=5.6.1]@ntc/stable',
-        'qt/[>=5.3.2]@ntc/stable',
         'gtest/[>=1.8.0]@bincrafters/stable',
         'helpers/[>=0.3]@ntc/stable',
     )
 
     options         = {
-        'shared': [True, False],
-        'fPIC':   [True, False],
-        'cxx11':  [True, False],
+        'shared':  [True, False],
+        'fPIC':    [True, False],
+        'cxx11':   [True, False],
+        'with_qt': [True, False],
     }
-    default_options = ('shared=True', 'fPIC=True', 'cxx11=True')
+    default_options = ('shared=True', 'fPIC=True', 'cxx11=True', 'with_qt=True')
 
     def config_options(self):
         if self.settings.compiler == "Visual Studio":
@@ -53,6 +53,10 @@ class PclConan(ConanFile):
         if self.options.shared and self.settings.os == 'Windows' and self.version == '1.8.4':
             self.options['flann'].shared = self.options.shared
         self.options['flann'].cxx11 = self.options.cxx11
+
+    def requirements(self):
+        if self.options.with_qt:
+            self.requires('qt/[>=5.3.2]@ntc/stable')
 
     def source(self):
 
@@ -134,15 +138,15 @@ class PclConan(ConanFile):
         if 'Windows' == self.settings.os:
             cmake.definitions['PCL_BUILD_WITH_BOOST_DYNAMIC_LINKING_WIN32:BOOL'] = 'ON' if self.options['boost'].shared else 'OFF'
 
-        # Qt
-        # Qt exposes pkg-config files (at least on Linux, on Windows there are
-        # .prl files *shrugs*, but PCL (pcl_find_qt5.cmake) doesn't use this.
-        qt_deps = ['Core', 'Gui', 'OpenGL', 'Widgets']
-        if '7' >= Version(str(self.deps_cpp_info['vtk'].version)):
-            qt_deps.append('') # VTK 7 wants Qt5Config (note p='' in Qt5{p}Config)
-        for p in qt_deps:
-            cmake.definitions[f'Qt5{p}_DIR:PATH'] = adjustPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', f'Qt5{p}'))
-        cmake.definitions['QT_QMAKE_EXECUTABLE:PATH'] = adjustPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'bin', 'qmake'))
+        if self.options.with_qt:
+            # Qt exposes pkg-config files (at least on Linux, on Windows there are
+            # .prl files *shrugs*, but PCL (pcl_find_qt5.cmake) doesn't use this.
+            qt_deps = ['Core', 'Gui', 'OpenGL', 'Widgets']
+            if '7' >= Version(str(self.deps_cpp_info['vtk'].version)):
+                qt_deps.append('') # VTK 7 wants Qt5Config (note p='' in Qt5{p}Config)
+            for p in qt_deps:
+                cmake.definitions[f'Qt5{p}_DIR:PATH'] = adjustPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', f'Qt5{p}'))
+            cmake.definitions['QT_QMAKE_EXECUTABLE:PATH'] = adjustPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'bin', 'qmake'))
 
         # Eigen: Despite being provided with pkg-config, and 1.7.2 finding
         # these successfully with pkg-config, cmake evidentially still requires
@@ -188,11 +192,12 @@ class PclConan(ConanFile):
 
         with tools.environment_append(env_info):
 
-            # When cmake is called twice, pcl_find_qt5.cmake for some reason
-            # has QT_USE_FILE set to a system path, which fails the
-            # configuration.  So this line adjusts it to what it should be by
-            # default. (wtf..)
-            cmake.definitions['QT_USE_FILE'] = os.path.join(self.build_folder, 'use-qt5.cmake')
+            if self.options.with_qt:
+                # When cmake is called twice, pcl_find_qt5.cmake for some reason
+                # has QT_USE_FILE set to a system path, which fails the
+                # configuration.  So this line adjusts it to what it should be by
+                # default. (wtf..)
+                cmake.definitions['QT_USE_FILE'] = os.path.join(self.build_folder, 'use-qt5.cmake')
 
             cmake.configure(source_folder=self.name, build_folder=self.build_folder)
             cmake.install()
