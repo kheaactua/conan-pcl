@@ -24,6 +24,7 @@ class PclConan(ConanFile):
         'qhull/2015.2@ntc/stable',
         'vtk/[>=5.6.1]@ntc/stable',
         'gtest/[>=1.8.0]@bincrafters/stable',
+        # Could add suitesparse/5.2.0@ntc/stable
         'helpers/[>=0.3]@ntc/stable',
     )
 
