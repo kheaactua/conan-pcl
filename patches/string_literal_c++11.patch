@@ -1,0 +1,12 @@
+diff -ur a/surface/src/3rdparty/opennurbs/opennurbs_archive.cpp b/surface/src/3rdparty/opennurbs/opennurbs_archive.cpp
+--- a/surface/src/3rdparty/opennurbs/opennurbs_archive.cpp	2018-05-17 11:44:17.183010201 -0400
++++ b/surface/src/3rdparty/opennurbs/opennurbs_archive.cpp	2018-06-06 11:32:18.618952358 -0400
+@@ -13557,7 +13557,7 @@
+ 
+   while(pObject)
+   {
+-    rc = archive.Write3dmStartSection( version, "Archive created by ON_WriteOneObjectArchive "__DATE__" "__TIME__ );
++    rc = archive.Write3dmStartSection( version, "Archive created by ON_WriteOneObjectArchive " __DATE__ " " __TIME__ );
+     if ( !rc )
+       break;
+ 
