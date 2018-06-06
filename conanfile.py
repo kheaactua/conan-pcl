@@ -8,11 +8,11 @@ from conans.model.version import Version
 
 
 class PclConan(ConanFile):
-    """ Tested with versions 1.7.2, 1.8.0, and 1.8.1 """
-
     name         = 'pcl'
-    license      = 'BSD'
-    url          = 'http://docs.pointclouds.org/'
+    version      = '1.7.2'
+    md5_hash     = '02c72eb6760fcb1f2e359ad8871b9968'
+    license      = 'MIT'
+    url          = 'https://github.com/kheaactua/conan-pcl'
     description  = 'Point cloud library'
     settings     = 'os', 'compiler', 'build_type', 'arch'
     build_policy = 'missing'
@@ -61,13 +61,7 @@ class PclConan(ConanFile):
 
     def source(self):
 
-        hashes = {
-            '1.8.1': '436704215670bb869ca742af48c749a9',
-            '1.8.0': '8c1308be2c13106e237e4a4204a32cca',
-            '1.7.2': '02c72eb6760fcb1f2e359ad8871b9968',
-        }
-
-        if self.version in hashes:
+        try:
             archive = f'pcl-{self.version}.tar.gz'
             if os.path.exists(os.path.join('/tmp', archive)):
                 shutil.copy(os.path.join('/tmp', archive), self.source_folder)
@@ -76,10 +70,10 @@ class PclConan(ConanFile):
                     url=f'https://github.com/PointCloudLibrary/pcl/archive/{archive}',
                     filename=archive
                 )
-                tools.check_md5(archive, hashes[self.version])
+                tools.check_md5(archive, self.md5_hash)
                 tools.unzip(archive)
                 shutil.move(f'pcl-pcl-{self.version}', self.name)
-        else:
+        except:
             self.run(f'git clone https://github.com/PointCloudLibrary/pcl.git {self.name}')
             self.run(f'cd {self.name} && git checkout pcl')
 
