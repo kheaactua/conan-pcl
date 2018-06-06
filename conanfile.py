@@ -42,26 +42,15 @@ class PclConan(ConanFile):
             self.options.remove("fPIC")
 
     def configure(self):
-        self.options['boost'].shared = self.options.shared
-        if self.settings.compiler != "Visual Studio":
-            self.options['boost'].fPIC = True
-        self.options['gtest'].shared = self.options.shared
-
-        self.options['qhull'].cxx11  = self.options.cxx11
-
-        self.options['vtk'].shared = self.options.shared
-
         # I don't remember why this 'constraint' is here
         if self.options.shared and self.settings.os == 'Windows' and self.version == '1.8.4':
             self.options['flann'].shared = self.options.shared
-        self.options['flann'].cxx11 = self.options.cxx11
 
     def requirements(self):
         if self.options.with_qt:
             self.requires('qt/[>=5.3.2]@ntc/stable')
 
     def source(self):
-
         try:
             archive = f'pcl-{self.version}.tar.gz'
             if not os.path.exists(archive):
