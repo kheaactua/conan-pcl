@@ -1,0 +1,24 @@
+diff --git a/segmentation/include/pcl/segmentation/grabcut_segmentation.h b/segmentation/include/pcl/segmentation/grabcut_segmentation.h
+--- a/segmentation/include/pcl/segmentation/grabcut_segmentation.h	2018-05-17 11:44:17.171010304 -0400
++++ b/segmentation/include/pcl/segmentation/grabcut_segmentation.h	2018-05-17 11:44:56.430675103 -0400
+@@ -161,7 +161,7 @@
+ 
+         private:
+           /// parents_ flag for terminal state
+-          static const int TERMINAL = -1;
++          static const int TERMINAL;
+           /// search tree (also uses cut_)
+           std::vector<std::pair<int, edge_pair> > parents_;
+           /// doubly-linked list (prev, next)
+diff --git segmentation/src/grabcut_segmentation.cpp segmentation/src/grabcut_segmentation.cpp
+--- a/segmentation/src/grabcut_segmentation.cpp	2018-05-17 11:44:17.175010270 -0400
++++ b/segmentation/src/grabcut_segmentation.cpp	2018-05-17 11:46:15.741997921 -0400
+@@ -45,6 +45,8 @@
+ #include <map>
+ #include <algorithm>
+ 
++const int pcl::segmentation::grabcut::BoykovKolmogorov::TERMINAL = 1;
++
+ pcl::segmentation::grabcut::BoykovKolmogorov::BoykovKolmogorov (std::size_t max_nodes)
+   : flow_value_(0.0)
+ {
