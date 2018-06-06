@@ -2,9 +2,10 @@
 # -*- coding: future_fstrings -*-
 # -*- coding: utf-8 -*-
 
-import re, os, shutil
+import re, os, shutil, glob
 from conans import ConanFile, CMake, tools
 from conans.model.version import Version
+from conans.errors import ConanException
 
 
 class PclConan(ConanFile):
@@ -16,8 +17,8 @@ class PclConan(ConanFile):
     description  = 'Point cloud library'
     settings     = 'os', 'compiler', 'build_type', 'arch'
     build_policy = 'missing'
-    exports      = '*.patch'
-    requires = (
+    exports      = 'patches/*'
+    requires     = (
         'boost/[>1.46]@ntc/stable',
         'eigen/[>=3.2.0]@ntc/stable',
         'flann/[>=1.6.8]@ntc/stable',
@@ -28,7 +29,7 @@ class PclConan(ConanFile):
         'helpers/[>=0.3]@ntc/stable',
     )
 
-    options         = {
+    options      = {
         'shared':  [True, False],
         'fPIC':    [True, False],
         'cxx11':   [True, False],
@@ -63,17 +64,17 @@ class PclConan(ConanFile):
 
         try:
             archive = f'pcl-{self.version}.tar.gz'
-            if os.path.exists(os.path.join('/tmp', archive)):
-                shutil.copy(os.path.join('/tmp', archive), self.source_folder)
-            else:
+            if not os.path.exists(archive):
+                # Sometimes the file can already exist
                 tools.download(
                     url=f'https://github.com/PointCloudLibrary/pcl/archive/{archive}',
                     filename=archive
                 )
                 tools.check_md5(archive, self.md5_hash)
-                tools.unzip(archive)
-                shutil.move(f'pcl-pcl-{self.version}', self.name)
-        except:
+            tools.unzip(archive)
+            shutil.move(f'pcl-pcl-{self.version}', self.name)
+        except ConanException as e:
+            self.output.warn('Received exception while downloding PCL archive.  Attempting to clone from source. Exception = %s'%e)
             self.run(f'git clone https://github.com/PointCloudLibrary/pcl.git {self.name}')
             self.run(f'cd {self.name} && git checkout pcl')
 
@@ -81,8 +82,9 @@ class PclConan(ConanFile):
             import cmake_helpers
             cmake_helpers.wrapCMakeFile(os.path.join(self.source_folder, self.name), output_func=self.output.info)
 
-        patch_file = f'{self.version}.patch'
-        if os.path.exists(patch_file):
+        patch_files = glob.glob('patches/*')
+        for patch_file in patch_files:
+            self.output.info(f'Applying patch {patch_file}')
             tools.patch(patch_file=patch_file, base_path='pcl')
 
     def _set_up_cmake(self):
@@ -106,7 +108,7 @@ class PclConan(ConanFile):
         cmake.definitions['BOOST_ROOT:PATH'] = adjustPath(self.deps_cpp_info['boost'].rootpath)
 
         if 'fPIC' in self.options and self.options.fPIC:
-            cmake.definitions['CMAKE_POSITION_INDEPENDENT_CODE'] = 'ON'
+            cmake.definitions['CMAKE_POSITION_INDEPENDENT_CODE:BOOL'] = 'ON'
         if self.options.cxx11:
             cmake.definitions['CMAKE_CXX_STANDARD'] = 11
 
