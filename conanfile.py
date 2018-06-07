@@ -16,7 +16,6 @@ class PclConan(ConanFile):
     url          = 'https://github.com/kheaactua/conan-pcl'
     description  = 'Point cloud library'
     settings     = 'os', 'compiler', 'build_type', 'arch'
-    build_policy = 'missing'
     exports      = 'patches/*'
     requires     = (
         'boost/[>1.46]@ntc/stable',
