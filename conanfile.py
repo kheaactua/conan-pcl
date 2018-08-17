@@ -22,19 +22,20 @@ class PclConan(ConanFile):
         'eigen/[>=3.2.0]@ntc/stable',
         'flann/[>=1.6.8]@ntc/stable',
         'qhull/2015.2@ntc/stable',
-        'vtk/[>=5.6.1]@ntc/stable',
         'gtest/[>=1.8.0]@bincrafters/stable',
+        'zlib/[>=1.2.11]@conan/stable',
         # Could add suitesparse/5.2.0@ntc/stable
         'helpers/[>=0.3]@ntc/stable',
     )
 
     options      = {
-        'shared':  [True, False],
-        'fPIC':    [True, False],
-        'cxx11':   [True, False],
-        'with_qt': [True, False],
+        'shared':   [True, False],
+        'fPIC':     [True, False],
+        'cxx11':    [True, False],
+        'with_qt':  [True, False],
+        'with_vtk': [True, False],
     }
-    default_options = ('shared=True', 'fPIC=True', 'cxx11=True', 'with_qt=True')
+    default_options = ('shared=True', 'fPIC=True', 'cxx11=True', 'with_qt=True', 'with_vtk=True')
 
     def config_options(self):
         if self.settings.compiler == "Visual Studio":
@@ -48,6 +49,10 @@ class PclConan(ConanFile):
     def requirements(self):
         if self.options.with_qt:
             self.requires('qt/[>=5.3.2]@ntc/stable')
+        if self.options.with_vtk:
+            self.requires('vtk/[>=5.6.1]@ntc/stable')
+
+        self.requires('bzip2/1.0.6@ntc/stable', override=True)
 
     def source(self):
         try:
@@ -83,11 +88,12 @@ class PclConan(ConanFile):
         # Import from helpers/x@ntc/stable
         from platform_helpers import adjustPath
 
-        vtk_major = '.'.join(self.deps_cpp_info['vtk'].version.split('.')[:2])
+        if 'vtk' in self.deps_cpp_info.deps:
+            vtk_major = '.'.join(self.deps_cpp_info['vtk'].version.split('.')[:2])
 
-        # TODO See if we can use self.deps_cpp_info['vtk'].res
-        vtk_cmake_rel_dir = f'lib/cmake/vtk-{vtk_major}'
-        vtk_cmake_dir = f'{self.deps_cpp_info["vtk"].rootpath}/{vtk_cmake_rel_dir}'
+            # TODO See if we can use self.deps_cpp_info['vtk'].res
+            vtk_cmake_rel_dir = f'lib/cmake/vtk-{vtk_major}'
+            vtk_cmake_dir = f'{self.deps_cpp_info["vtk"].rootpath}/{vtk_cmake_rel_dir}'
 
         # Create our CMake generator
         cmake = CMake(self)
@@ -116,7 +122,13 @@ class PclConan(ConanFile):
         cmake.definitions['GTEST_ROOT:PATH'] = adjustPath(self.deps_cpp_info['gtest'].rootpath)
 
         # VTK
-        cmake.definitions['VTK_DIR:PATH']    = adjustPath(vtk_cmake_dir)
+        if 'vtk' in self.deps_cpp_info.deps:
+            cmake.definitions['VTK_DIR:PATH']    = adjustPath(vtk_cmake_dir)
+        else:
+            cmake.definitions['WITH_VTK:BOOL'] = 'OFF'
+
+        # Zlib
+        cmake.definitions['ZLIB_ROOT:PATH'] = self.deps_cpp_info['zlib'].rootpath
 
         # PCL Options
         cmake.definitions['BUILD_surface_on_nurbs:BOOL'] = 'ON'
@@ -124,15 +136,17 @@ class PclConan(ConanFile):
         if 'Windows' == self.settings.os:
             cmake.definitions['PCL_BUILD_WITH_BOOST_DYNAMIC_LINKING_WIN32:BOOL'] = 'ON' if self.options['boost'].shared else 'OFF'
 
-        if self.options.with_qt:
+        if 'qt' in self.deps_cpp_info.deps:
             # Qt exposes pkg-config files (at least on Linux, on Windows there are
             # .prl files *shrugs*, but PCL (pcl_find_qt5.cmake) doesn't use this.
             qt_deps = ['Core', 'Gui', 'OpenGL', 'Widgets']
-            if '7' >= Version(str(self.deps_cpp_info['vtk'].version)):
+            if 'vtk' in self.deps_cpp_info.deps and '7' >= Version(str(self.deps_cpp_info['vtk'].version)):
                 qt_deps.append('') # VTK 7 wants Qt5Config (note p='' in Qt5{p}Config)
             for p in qt_deps:
                 cmake.definitions[f'Qt5{p}_DIR:PATH'] = adjustPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'lib', 'cmake', f'Qt5{p}'))
             cmake.definitions['QT_QMAKE_EXECUTABLE:PATH'] = adjustPath(os.path.join(self.deps_cpp_info['qt'].rootpath, 'bin', 'qmake'))
+        else:
+            cmake.definitions['WITH_QT:BOOL'] = 'OFF'
 
         # Eigen: Despite being provided with pkg-config, and 1.7.2 finding
         # these successfully with pkg-config, cmake evidentially still requires
@@ -188,9 +202,11 @@ class PclConan(ConanFile):
             cmake.configure(source_folder=self.name, build_folder=self.build_folder)
             cmake.install()
 
-        # TODO See if we can use self.deps_cpp_info['vtk'].res
-        vtk_major = '.'.join(self.deps_cpp_info['vtk'].version.split('.')[:2])
-        vtk_cmake_rel_dir = f'lib/cmake/vtk-{vtk_major}'
+        vtk_cmake_rel_dir = None
+        if 'vtk' in self.deps_cpp_info.deps:
+            # TODO See if we can use self.deps_cpp_info['vtk'].res
+            vtk_major = '.'.join(self.deps_cpp_info['vtk'].version.split('.')[:2])
+            vtk_cmake_rel_dir = f'lib/cmake/vtk-{vtk_major}'
 
         # Fix up the CMake Find Script PCL generated
         self.output.info('Inserting Conan variables in to the PCL CMake Find script.')
@@ -255,9 +271,10 @@ class PclConan(ConanFile):
             'boost': '${CONAN_INCLUDE_DIRS_BOOST}',
             'flann': '${CONAN_INCLUDE_DIRS_FLANN}',
             'qhull': '${CONAN_INCLUDE_DIRS_QHULL}',
-            'vtk':   '${CONAN_VTK_ROOT}/' + vtk_cmake_rel_dir,
             'pcl':   '${CONAN_PCL_ROOT}/pcl'
         }
+        if 'vtk' in self.deps_cpp_info.deps:
+            sub_map['vtk'] = '${CONAN_VTK_ROOT}/' + vtk_cmake_rel_dir
 
         # https://regex101.com/r/fZxj7i/1
         regex = r"(?<=\").*?conan.*?(?P<package>(%s)).*?(?=\")"
