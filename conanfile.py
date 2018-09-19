@@ -128,10 +128,15 @@ class PclConan(ConanFile):
             cmake.definitions['ADDITIONAL_CXX_FLAGS:STRING'] = ' '.join(cxx_flags)
 
         # QHull
-        cmake.definitions['QHULL_ROOT:PATH'] = adjustPath(self.deps_cpp_info['qhull'].rootpath)
+        # Note: PCL searches for the Release and Debug version of Qhull, and
+        # fails if it cannot find the Release version, so, only the release
+        # version should be provided.
+        if 'qhull' in self.deps_cpp_info.deps:
+            cmake.definitions['QHULL_ROOT:PATH'] = adjustPath(self.deps_cpp_info['qhull'].rootpath)
 
         # GTest
-        cmake.definitions['GTEST_ROOT:PATH'] = adjustPath(self.deps_cpp_info['gtest'].rootpath)
+        if 'gtest' in self.deps_cpp_info.deps:
+            cmake.definitions['GTEST_ROOT:PATH'] = adjustPath(self.deps_cpp_info['gtest'].rootpath)
 
         # VTK
         if 'vtk' in self.deps_cpp_info.deps:
