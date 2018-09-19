@@ -22,7 +22,6 @@ class PclConan(ConanFile):
         'eigen/[>=3.2.0]@ntc/stable',
         'flann/[>=1.6.8]@ntc/stable',
         'qhull/2015.2@ntc/stable',
-        'gtest/[>=1.8.0]@bincrafters/stable',
         'zlib/[>=1.2.11]@conan/stable',
         # Could add suitesparse/5.2.0@ntc/stable
         'helpers/[>=0.3]@ntc/stable',
@@ -53,6 +52,11 @@ class PclConan(ConanFile):
             self.requires('vtk/[>=5.6.1]@ntc/stable')
 
         self.requires('bzip2/1.0.6@ntc/stable', override=True)
+
+        if 'Windows' == self.settings.os and 'Visual Studio' == self.settings.compiler and Version(str(self.settings.compiler.version)) <= '12':
+            self.requires('gtest/1.8.0@bincrafters/stable')
+        else:
+            self.requires('gtest/[>=1.8.0]@bincrafters/stable')
 
     def source(self):
         archive_ext = 'tar.gz'
