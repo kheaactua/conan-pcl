@@ -55,21 +55,26 @@ class PclConan(ConanFile):
         self.requires('bzip2/1.0.6@ntc/stable', override=True)
 
     def source(self):
-        try:
-            archive = f'pcl-{self.version}.tar.gz'
-            if not os.path.exists(archive):
-                # Sometimes the file can already exist
-                tools.download(
-                    url=f'https://github.com/PointCloudLibrary/pcl/archive/{archive}',
-                    filename=archive
-                )
-                tools.check_md5(archive, self.md5_hash)
-            tools.unzip(archive)
-            shutil.move(f'pcl-pcl-{self.version}', self.name)
-        except ConanException as e:
-            self.output.warn('Received exception while downloding PCL archive.  Attempting to clone from source. Exception = %s'%e)
-            self.run(f'git clone https://github.com/PointCloudLibrary/pcl.git {self.name}')
-            self.run(f'cd {self.name} && git checkout pcl')
+        archive_ext = 'tar.gz'
+        archive_name = f'pcl-pcl-{self.version}'
+        archive_file = f'{archive_name}.{archive_ext}'
+
+        from source_cache import copyFromCache
+        if not copyFromCache(archive):
+            try:
+                if not os.path.exists(archive_file):
+                    # Sometimes the file can already exist
+                    tools.download(
+                        url=f'https://github.com/PointCloudLibrary/pcl/archive/{archive_file}',
+                        filename=archive
+                    )
+                    tools.check_md5(archive, self.md5_hash)
+                tools.unzip(archive)
+                shutil.move(archive_name, self.name)
+            except ConanException as e:
+                self.output.warn('Received exception while downloding PCL archive.  Attempting to clone from source. Exception = %s'%e)
+                self.run(f'git clone https://github.com/PointCloudLibrary/pcl.git {self.name}')
+                self.run(f'cd {self.name} && git checkout pcl-{self.version}')
 
         if self.settings.compiler == 'gcc':
             import cmake_helpers
