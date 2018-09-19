@@ -64,16 +64,19 @@ class PclConan(ConanFile):
         archive_file = f'{archive_name}.{archive_ext}'
 
         from source_cache import copyFromCache
-        if not copyFromCache(archive):
+        if copyFromCache(archive_file):
+            tools.unzip(archive_file)
+            shutil.move(archive_name, self.name)
+        else:
             try:
                 if not os.path.exists(archive_file):
                     # Sometimes the file can already exist
                     tools.download(
                         url=f'https://github.com/PointCloudLibrary/pcl/archive/{archive_file}',
-                        filename=archive
+                        filename=archive_file
                     )
-                    tools.check_md5(archive, self.md5_hash)
-                tools.unzip(archive)
+                    tools.check_md5(archive_file, self.md5_hash)
+                tools.unzip(archive_file)
                 shutil.move(archive_name, self.name)
             except ConanException as e:
                 self.output.warn('Received exception while downloding PCL archive.  Attempting to clone from source. Exception = %s'%e)
