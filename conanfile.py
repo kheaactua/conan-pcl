@@ -62,10 +62,10 @@ class PclConan(ConanFile):
             shutil.move(f'pcl-pcl-{self.version}', self.name)
         except ConanException as e:
             self.output.warn('Received exception while downloding PCL archive.  Attempting to clone from source. Exception = %s'%e)
-            self.run(f'git clone https://github.com/PointCloudLibrary/pcl.git {self.name}')
-            self.run(f'cd {self.name} && git checkout pcl')
+            g = tools.Git(folder=self.name)
+            g.clone('https://github.com/PointCloudLibrary/pcl.git', branch='pcl-%s'%self.version)
 
-        if self.settings.compiler == 'gcc':
+        if 'gcc' == self.settings.compiler:
             import cmake_helpers
             cmake_helpers.wrapCMakeFile(os.path.join(self.source_folder, self.name), output_func=self.output.info)
 
