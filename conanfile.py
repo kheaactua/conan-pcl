@@ -41,7 +41,7 @@ class PclConan(ConanFile):
 
     def configure(self):
         # I don't remember why this 'constraint' is here
-        if self.options.shared and self.settings.os == 'Windows' and self.version == '1.8.4':
+        if self.options.shared and tools.os_info.is_windows and self.version == '1.8.4':
             self.options['flann'].shared = self.options.shared
 
     def requirements(self):
@@ -120,7 +120,7 @@ class PclConan(ConanFile):
         # PCL Options
         cmake.definitions['BUILD_surface_on_nurbs:BOOL'] = 'ON'
         cmake.definitions['BUILD_SHARED_LIBS:BOOL'] = 'ON' if self.options.shared else 'OFF'
-        if 'Windows' == self.settings.os:
+        if tools.os_info.is_windows:
             cmake.definitions['PCL_BUILD_WITH_BOOST_DYNAMIC_LINKING_WIN32:BOOL'] = 'ON' if self.options['boost'].shared else 'OFF'
 
         if self.options.with_qt:
@@ -141,7 +141,7 @@ class PclConan(ConanFile):
         # Flann is found via pkg-config
 
         env_info = {}
-        if 'Linux' == self.settings.os:
+        if tools.os_info.is_linux:
             # There's an issue when using boost with shared bzip2 where the shared
             # lib path isn't exposed, and as such PCL can't link.  So here we
             # inject the path into our linker path.
@@ -222,7 +222,7 @@ class PclConan(ConanFile):
         # Populate the libs
         self.cpp_info.libs = tools.collect_libs(self)
 
-        if self.options.shared and 'Windows' == self.settings.os:
+        if self.options.shared and tools.os_info.is_windows:
             # Add our libs to PATH
             self.env_info.path.append(os.path.join(self.package_folder, 'lib'))
 
@@ -282,7 +282,7 @@ class PclConan(ConanFile):
         (pcl_release, pcl_major) = [int(i) for i in self.version.split('.')[:2]]
         pcl_version_str = f'{pcl_release}.{pcl_major}'
 
-        if 'Windows' == self.settings.os:
+        if tools.os_info.is_windows:
             # On Windows, this CMake file is in a different place
             d = os.path.join(self.package_folder, 'cmake')
         else:
