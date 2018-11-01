@@ -65,14 +65,29 @@ class PclConan(ConanFile):
             g = tools.Git(folder=self.name)
             g.clone('https://github.com/PointCloudLibrary/pcl.git', branch='pcl-%s'%self.version)
 
-        if 'gcc' == self.settings.compiler:
-            import cmake_helpers
-            cmake_helpers.wrapCMakeFile(os.path.join(self.source_folder, self.name), output_func=self.output.info)
+        # Overload the top CMakeLists file so that we can inject in some
+        # definitions, or append to the CXX_FLAGS
+        import cmake_helpers
+        cmake_helpers.wrapCMakeFile(
+            source_folder=os.path.join(self.source_folder, self.name),
+            output_func=self.output.info,
+        )
 
         patch_files = glob.glob('patches/*')
         for patch_file in patch_files:
             self.output.info(f'Applying patch {patch_file}')
             tools.patch(patch_file=patch_file, base_path='pcl')
+
+        # In boost 1.66, sha1.hpp got moved (but there was a patch), in 1.68,
+        # the patch got removed too.
+        if Version(self.deps_cpp_info['boost'].version) >= '1.66':
+            tools.replace_path_in_file(
+                file_path=os.path.join(self.name, 'visualization', 'src', 'pcl_visualizer.cpp'),
+                search='boost/uuid/sha1.hpp',
+                replace='boost/uuid/detail/sha1.hpp',
+                windows_paths=False,
+            )
+
 
     def _set_up_cmake(self):
         """
@@ -105,8 +120,12 @@ class PclConan(ConanFile):
                 cxx_flags.append('-mtune=generic')
             cxx_flags.append('-frecord-gcc-switches')
 
+        # Set a cache variable we created by wrapping the top CMAke file in source()
         if len(cxx_flags):
             cmake.definitions['ADDITIONAL_CXX_FLAGS:STRING'] = ' '.join(cxx_flags)
+
+        if Version(self.deps_cpp_info['boost'].version) >= '1.66':
+            cmake.definitions['ADDITIONAL_DEFINITIONS:STRING'] ='-DBOOST_UUID_RANDOM_GENERATOR_COMPAT'
 
         # QHull
         cmake.definitions['QHULL_ROOT:PATH'] = adjustPath(self.deps_cpp_info['qhull'].rootpath)
