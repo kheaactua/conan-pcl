@@ -10,8 +10,8 @@ from conans.errors import ConanException
 
 class PclConan(ConanFile):
     name         = 'pcl'
-    version      = '1.8.1'
-    md5_hash     = '436704215670bb869ca742af48c749a9'
+    version      = '1.9.1'
+    md5_hash     = '4d4cfb6bf87cc1f08703deeeac1eb6e2'
     license      = 'MIT'
     url          = 'https://github.com/kheaactua/conan-pcl'
     description  = 'Point cloud library'
