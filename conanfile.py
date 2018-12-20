@@ -7,6 +7,10 @@ from conans import ConanFile, CMake, tools
 from conans.model.version import Version
 from conans.errors import ConanException
 
+class ansi:
+	green  = u'\033[32m'
+	yellow = u'\033[33m'
+	clear  = u'\033[0m'
 
 class PclConan(ConanFile):
     name         = 'pcl'
@@ -24,6 +28,7 @@ class PclConan(ConanFile):
         'qhull/2015.2@ntc/stable',
         'vtk/[>=5.6.1]@ntc/stable',
         'gtest/[>=1.8.0]@bincrafters/stable',
+        'zlib/[> = 1.2.11]@conan/stable',
         'helpers/[>=0.3]@ntc/stable',
     )
 
@@ -38,11 +43,6 @@ class PclConan(ConanFile):
     def config_options(self):
         if self.settings.compiler == "Visual Studio":
             self.options.remove("fPIC")
-
-    def configure(self):
-        # I don't remember why this 'constraint' is here
-        if self.options.shared and tools.os_info.is_windows and self.version == '1.8.4':
-            self.options['flann'].shared = self.options.shared
 
     def requirements(self):
         if self.options.with_qt:
@@ -87,7 +87,6 @@ class PclConan(ConanFile):
                 replace='boost/uuid/detail/sha1.hpp',
                 windows_paths=False,
             )
-
 
     def _set_up_cmake(self):
         """
@@ -173,15 +172,34 @@ class PclConan(ConanFile):
         cmake, env_info = self._set_up_cmake()
 
         # Debug
+        pkg_config_vars = {}
         s = '\nBase Environment:\n'
         for k,v in os.environ.items():
             s += ' - %s=%s\n'%(k, v)
+            if 'PKG_CONFIG' in k:
+                pkg_config_vars[k] = v
         self.output.info(s)
+
         if len(env_info.keys()):
             s = '\nAdditional Environment:\n'
             for k,v in env_info.items():
+                if 'PKG_CONFIG' in k:
+                    if k in os.environ:
+                        pkg_config_vars[k] = ansi.red + v + ansi.clear
+                    else:
+                        pkg_config_vars[k] = v
                 s += ' - %s=%s\n'%(k, v)
             self.output.info(s)
+
+        if len(pkg_config_vars):
+            s = '\nPkg-Config Specific Environment:\n'
+            for k,v in pkg_config_vars.items():
+                if k != 'PKG_CONFIG_PATH':
+                    s += ' - %s=%s\n'%(k, v)
+            if 'PKG_CONFIG_PATH' in pkg_config_vars:
+                s += ' - PKG_CONFIG_PATH:\n  - %s'%('\n  - '.join(pkg_config_vars['PKG_CONFIG_PATH'].split(';' if tools.os_info.is_windows else ':')))
+            self.output.info(s)
+
         s = '\nCMake Definitions:\n'
         for k,v in cmake.definitions.items():
             s += ' - %s=%s\n'%(k, v)
