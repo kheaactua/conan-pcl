@@ -1,0 +1,16 @@
+diff --git a/cmake/Modules/FindFLANN.cmake b/cmake/Modules/FindFLANN.cmake
+index 964d7732d..a53397560 100644
+--- a/cmake/Modules/FindFLANN.cmake
++++ b/cmake/Modules/FindFLANN.cmake
+@@ -53,6 +53,11 @@ if(NOT FLANN_FOUND)
+     find_package_handle_standard_args(FLANN DEFAULT_MSG FLANN_LIBRARY FLANN_INCLUDE_DIR)
+ 
+     mark_as_advanced(FLANN_LIBRARY FLANN_LIBRARY_DEBUG FLANN_INCLUDE_DIR)
++else()
++    find_library(FLANN_LIBRARY
++                 NAMES ${FLANN_RELEASE_NAME}
++                 PATHS ${FLANN_LIBRARY_DIRS})
++    set(FLANN_LIBRARIES ${FLANN_LIBRARY})
+ endif()
+ 
+ if(FLANN_FOUND)
