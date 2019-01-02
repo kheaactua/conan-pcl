@@ -28,7 +28,7 @@ class PclConan(ConanFile):
         'qhull/2015.2@ntc/stable',
         'vtk/[>=5.6.1]@ntc/stable',
         'gtest/[>=1.8.0]@bincrafters/stable',
-        'zlib/[> = 1.2.11]@conan/stable',
+        'zlib/[>=1.2.11]@conan/stable',
         'helpers/[>=0.3]@ntc/stable',
     )
 
@@ -41,8 +41,8 @@ class PclConan(ConanFile):
     default_options = ('shared=True', 'fPIC=True', 'cxx11=True', 'with_qt=True')
 
     def config_options(self):
-        if self.settings.compiler == "Visual Studio":
-            self.options.remove("fPIC")
+        if 'Visual Studio' == self.settings.compiler:
+            self.options.remove('fPIC')
 
     def requirements(self):
         if self.options.with_qt:
