@@ -8,9 +8,9 @@ from conans.model.version import Version
 from conans.errors import ConanException
 
 class ansi:
-	green  = u'\033[32m'
-	yellow = u'\033[33m'
-	clear  = u'\033[0m'
+    green  = u'\033[32m'
+    yellow = u'\033[33m'
+    clear  = u'\033[0m'
 
 class PclConan(ConanFile):
     name         = 'pcl'
@@ -27,7 +27,6 @@ class PclConan(ConanFile):
         'flann/[>=1.6.8]@ntc/stable',
         'qhull/2015.2@ntc/stable',
         'vtk/[>=5.6.1]@ntc/stable',
-        'gtest/[>=1.8.0]@bincrafters/stable',
         'zlib/[>=1.2.11]@conan/stable',
         'helpers/[>=0.3]@ntc/stable',
     )
@@ -47,6 +46,12 @@ class PclConan(ConanFile):
     def requirements(self):
         if self.options.with_qt:
             self.requires('qt/[>=5.3.2]@ntc/stable')
+
+        if tools.os_info.is_windows and 'Visual Studio' == self.settings.compiler and Version(str(self.settings.compiler.version)) <= '12':
+            # gtest 1.8.1 doesn't support MSVC <= 12
+            self.requires('gtest/1.8.0@bincrafters/stable')
+        else:
+            self.requires('gtest/[>=1.8.0]@bincrafters/stable')
 
     def source(self):
         try:
@@ -73,7 +78,7 @@ class PclConan(ConanFile):
             output_func=self.output.info,
         )
 
-        patch_files = glob.glob('patches/*')
+        patch_files = sorted(glob.glob('patches/*'))
         for patch_file in patch_files:
             self.output.info(f'Applying patch {patch_file}')
             tools.patch(patch_file=patch_file, base_path='pcl')
@@ -134,6 +139,10 @@ class PclConan(ConanFile):
 
         # VTK
         cmake.definitions['VTK_DIR:PATH']    = adjustPath(vtk_cmake_dir)
+
+        # OpenNI
+        cmake.definitions['WITH_OPENNI:BOOL'] = False
+        cmake.definitions['WITH_OPENNI2:BOOL'] = False
 
         # PCL Options
         cmake.definitions['BUILD_surface_on_nurbs:BOOL'] = 'ON'
